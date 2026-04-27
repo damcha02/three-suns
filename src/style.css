@@ -730,6 +730,25 @@ button:hover {
   border-radius: 0.16rem;
 }
 
+.overlay-goal {
+  margin: 0 0 1.1rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(0.86rem, 2.2vw, 0.98rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.45;
+}
+
+.overlay-panel .btn-primary {
+  background: rgba(179, 119, 255, 0.3);
+  border-color: rgba(179, 119, 255, 0.52);
+  box-shadow: 0 0 22px rgba(179, 119, 255, 0.22);
+}
+
+.overlay-panel .btn-primary:hover {
+  background: rgba(179, 119, 255, 0.46);
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 0.35; transform: scale(0.85); }
   50% { opacity: 1; transform: scale(1.2); }

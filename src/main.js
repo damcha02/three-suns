@@ -725,6 +725,7 @@ function openStoryScreen() {
 function closeOverlays() {
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
+  localStorage.setItem('threesuns_seen_info', 'true');
   if (state && !state.dead) state.paused = false;
 }
 
@@ -1306,3 +1307,4 @@ initPortals();
 resize();
 resetGame();
 animate();
+if (!localStorage.getItem('threesuns_seen_info') && !arrivedViaPortal) openInfoScreen();
