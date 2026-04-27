@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Suns: Chaotic Dawn — Visual Design Document</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #06060e;
+    --bg2:      #0c0c1a;
+    --surface:  #111128;
+    --border:   rgba(255,255,255,0.07);
+    --text:     oklch(92% 0.018 240);
+    --muted:    oklch(55% 0.015 240);
+    --dim:      oklch(35% 0.01 240);
+
+    --burned:   oklch(62% 0.20 28);
+    --frozen:   oklch(74% 0.14 222);
+    --chaos:    oklch(70% 0.18 292);
+    --collapse: oklch(68% 0.13 62);
+
+    --accent:   oklch(70% 0.18 292);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Star field background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      radial-gradient(1px 1px at 15% 22%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 42% 8%,  rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 77% 33%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 91% 61%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 6%  55%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 78%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 88%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 68% 15%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 84% 90%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 22% 44%, rgba(255,255,255,0.3) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; gap: 32px;
+    padding: 16px 40px;
+    background: rgba(6,6,14,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; letter-spacing: 0.08em; color: var(--muted);
+  }
+  nav .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 13px; color: var(--text); letter-spacing: 0.15em; }
+  nav a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  nav a:hover { color: var(--text); }
+
+  /* ── LAYOUT ── */
+  .page { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 120px 40px 80px; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 70vh; display: flex; flex-direction: column; justify-content: flex-end;
+    padding-bottom: 80px; border-bottom: 1px solid var(--border);
+  }
+  .hero-tag { font-size: 11px; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 24px; }
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(52px, 8vw, 110px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-wrap: balance;
+    margin-bottom: 32px;
+  }
+  .hero-title span { color: var(--chaos); }
+  .hero-sub { max-width: 560px; color: var(--muted); line-height: 1.8; }
+  .hero-meta {
+    margin-top: 40px; display: flex; gap: 40px; flex-wrap: wrap;
+    font-size: 11px; letter-spacing: 0.1em; color: var(--dim);
+  }
+  .hero-meta strong { color: var(--muted); display: block; margin-bottom: 4px; }
+
+  /* ── SECTION ── */
+  section { padding: 80px 0; border-bottom: 1px solid var(--border); }
+  .section-label {
+    font-size: 10px; letter-spacing: 0.25em; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 48px; display: flex; align-items: center; gap: 16px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-num { color: var(--dim); }
+
+  h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(28px, 4vw, 48px); letter-spacing: -0.02em; margin-bottom: 12px; }
+  h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; margin-bottom: 8px; }
+  h4 { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.05em; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; }
+
+  p { color: var(--muted); margin-bottom: 12px; max-width: 680px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 24px;
+  }
+  .card-sm { padding: 16px; }
+
+  /* ── COLOR SWATCHES ── */
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
+  .swatch {
+    display: flex; flex-direction: column; gap: 8px;
+    min-width: 120px;
+  }
+  .swatch-color {
+    height: 56px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .swatch-name { font-size: 11px; letter-spacing: 0.06em; }
+  .swatch-hex { font-size: 10px; color: var(--dim); }
+
+  /* ── TYPE SPECIMEN ── */
+  .type-specimen {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 32px; margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .specimen-label { font-size: 10px; letter-spacing: 0.2em; color: var(--dim); margin-bottom: 16px; display: block; }
+
+  /* ── DEATH SCREEN MOCKUPS ── */
+  .death-frame {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--border);
+    font-family: 'Syne', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.3s;
+  }
+  .death-frame:hover { transform: scale(1.01); }
+
+  .death-frame .stars {
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 40% 5%,  rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 72% 28%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 88% 65%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 5%  48%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 58% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 25% 92%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 66% 12%, rgba(255,255,255,0.5) 0%, transparent 100%);
+    opacity: 0.25;
+  }
+
+  .death-frame .planet-ghost {
+    position: absolute;
+    border-radius: 50%;
+    bottom: 10%; left: 50%; transform: translateX(-50%);
+    opacity: 0.06;
+  }
+
+  .death-frame .content { position: relative; z-index: 2; padding: 5%; width: 100%; }
+
+  .death-frame .verdict {
+    font-weight: 800; letter-spacing: -0.02em;
+    line-height: 0.9; margin-bottom: 12px;
+    font-size: clamp(16px, 3.2vw, 42px);
+  }
+  .death-frame .survived {
+    font-size: clamp(8px, 1.1vw, 14px); letter-spacing: 0.2em;
+    opacity: 0.5; margin-bottom: 6px; font-family: 'Space Mono', monospace;
+  }
+  .death-frame .cause {
+    font-size: clamp(7px, 0.9vw, 12px); opacity: 0.35; margin-bottom: 20px;
+    font-family: 'Space Mono', monospace; letter-spacing: 0.1em;
+  }
+  .death-frame .btns {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  }
+  .death-btn {
+    font-family: 'Space Mono', monospace; font-size: clamp(6px, 0.75vw, 10px);
+    letter-spacing: 0.15em; padding: 8px 16px;
+    border-radius: 2px; border: 1px solid; cursor: pointer;
+    transition: opacity 0.2s;
+    background: transparent;
+  }
+
+  /* ── SUN PERSONALITIES ── */
+  .sun-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 24px; display: flex; gap: 20px;
+  }
+  .sun-orb {
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px;
+  }
+
+  /* ── HUD MOCKUP ── */
+  .hud-frame {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    background: #05050c; border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+    font-family: 'Space Mono', monospace;
+  }
+  .hud-element {
+    position: absolute; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 2px; display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: rgba(255,255,255,0.3); letter-spacing: 0.1em;
+    text-align: center;
+  }
+
+  /* ── MOBILE HUD ── */
+  .mobile-frame {
+    width: 180px; aspect-ratio: 9/19;
+    background: #05050c; border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    position: relative; margin: 0 auto;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── PAUSE MENU ── */
+  .pause-frame {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    background: rgba(6,6,14,0.92); border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pause-panel {
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px; padding: 28px 36px; min-width: 200px;
+    text-align: center; font-family: 'Space Mono', monospace;
+  }
+
+  /* ── JUICE LIST ── */
+  .juice-item {
+    display: grid; grid-template-columns: 40px 1fr; gap: 16px;
+    padding: 20px 0; border-bottom: 1px solid var(--border);
+    align-items: start;
+  }
+  .juice-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; color: var(--dim); }
+  .juice-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .juice-desc { color: var(--muted); font-size: 12px; }
+  .juice-cost { display: inline-block; margin-top: 6px; font-size: 10px; letter-spacing: 0.1em; padding: 2px 8px; border: 1px solid var(--border); border-radius: 2px; color: var(--dim); }
+
+  /* ── IMPL NOTES ── */
+  .impl-list { list-style: none; }
+  .impl-list li {
+    display: grid; grid-template-columns: 12px 1fr;
+    gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); align-items: start;
+  }
+  .impl-list li::before { content: '→'; color: var(--chaos); margin-top: 1px; }
+  .impl-cat {
+    font-size: 10px; letter-spacing: 0.2em; color: var(--dim); text-transform: uppercase;
+    margin-top: 28px; margin-bottom: 8px;
+  }
+
+  /* ── READABILITY ITEMS ── */
+  .read-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 20px; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .read-icon {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  /* ── TAG ── */
+  .tag {
+    display: inline-block; font-size: 10px; letter-spacing: 0.12em;
+    padding: 3px 10px; border-radius: 2px; border: 1px solid;
+    text-transform: uppercase; margin-right: 6px; margin-bottom: 4px;
+  }
+  .tag-burned  { color: var(--burned);  border-color: var(--burned); }
+  .tag-frozen  { color: var(--frozen);  border-color: var(--frozen); }
+  .tag-chaos   { color: var(--chaos);   border-color: var(--chaos); }
+  .tag-collapse{ color: var(--collapse);border-color: var(--collapse); }
+
+  /* ── PORTAL BADGE ── */
+  .portal-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 2px;
+    padding: 8px 14px; font-size: 11px; letter-spacing: 0.1em;
+    color: var(--muted); font-family: 'Space Mono', monospace;
+    background: rgba(255,255,255,0.02);
+  }
+  .portal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chaos); animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  @media (max-width: 768px) {
+    .page { padding: 100px 20px 60px; }
+    nav { padding: 14px 20px; gap: 16px; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    nav a { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">THREE SUNS ✦ CHAOTIC DAWN</span>
+  <a href="#style">Style</a>
+  <a href="#death">Death</a>
+  <a href="#hud">HUD</a>
+  <a href="#readability">Readability</a>
+  <a href="#juice">Juice</a>
+  <a href="#impl">Notes</a>
+</nav>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">VISUAL DESIGN DOCUMENT · VIBE JAM 2026</div>
+    <h1 class="hero-title">THREE SUNS<br><span>CHAOTIC DAWN</span></h1>
+    <p class="hero-sub">Complete visual direction, death screen design, HUD layout, gameplay readability, and implementation notes for the code agent. Everything you need to make the game feel unforgettable.</p>
+    <div class="hero-meta">
+      <div><strong>MOOD</strong>COSMIC HORROR / ORBITAL DREAD</div>
+      <div><strong>CONSTRAINT</strong>NO ASSETS / PROCEDURAL ONLY</div>
+      <div><strong>PRIORITY</strong>IMPACT PER HOUR</div>
+      <div><strong>DATE</strong>APR 27 2026</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: VISUAL STYLE GUIDE -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="style">
+    <div class="section-label"><span class="section-num">01</span> Visual Style Guide</div>
+    <h2>Color System</h2>
+    <p>Four death-type tints anchor the palette. All other UI derives from near-black with white opacity. No saturated UI chrome — color only appears when something is catastrophically wrong.</p>
+
+    <div style="margin: 32px 0;">
+      <h4>Death Tints</h4>
+      <div class="swatch-row">
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(62% 0.20 28); box-shadow: 0 0 24px oklch(62% 0.20 28 / 0.4);"></div>
+          <span class="swatch-name">BURNED</span>
+          <span class="swatch-hex">oklch(62% 0.20 28)<br>≈ #c8420a</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(74% 0.14 222); box-shadow: 0 0 24px oklch(74% 0.14 222 / 0.4);"></div>
+          <span class="swatch-name">FROZEN</span>
+          <span class="swatch-hex">oklch(74% 0.14 222)<br>≈ #5bc4e8</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(70% 0.18 292); box-shadow: 0 0 24px oklch(70% 0.18 292 / 0.4);"></div>
+          <span class="swatch-name">CHAOS / SCATTERED</span>
+          <span class="swatch-hex">oklch(70% 0.18 292)<br>≈ #a87de8</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(68% 0.13 62); box-shadow: 0 0 24px oklch(68% 0.13 62 / 0.4);"></div>
+          <span class="swatch-name">COLLAPSE</span>
+          <span class="swatch-hex">oklch(68% 0.13 62)<br>≈ #c49a30</span>
+        </div>
+      </div>
+      <h4 style="margin-top:24px;">Base Tones</h4>
+      <div class="swatch-row">
+        <div class="swatch">
+          <div class="swatch-color" style="background:#06060e; border-color: rgba(255,255,255,0.15)!important;"></div>
+          <span class="swatch-name">VOID</span><span class="swatch-hex">#06060e — game bg</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background:#111128;"></div>
+          <span class="swatch-name">SURFACE</span><span class="swatch-hex">#111128 — UI panels</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(92% 0.018 240);"></div>
+          <span class="swatch-name">TEXT</span><span class="swatch-hex">cold white — all text</span>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: oklch(55% 0.015 240);"></div>
+          <span class="swatch-name">MUTED</span><span class="swatch-hex">secondary text</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:48px;">Typography</h2>
+    <p>Two fonts only. <strong>Syne</strong> for anything the player reads in an emotional moment (death titles, planet name, HUD values). <strong>Space Mono</strong> for data readouts, coordinates, timers. Both load from Google Fonts — no fallback degradation on any modern browser.</p>
+
+    <div class="type-specimen">
+      <span class="specimen-label">SYNE 800 — DEATH TITLE / SCORE / PLANET NAME</span>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(36px,6vw,80px);line-height:0.9;letter-spacing:-0.02em;color:var(--text);">THE DAWN<br>CONSUMED YOU</div>
+    </div>
+    <div class="type-specimen">
+      <span class="specimen-label">SYNE 700 — SECTION HEADERS / SUN LABELS</span>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:28px;letter-spacing:-0.01em;">Gravity Anchor · Focus Pulse · Danger Omen</div>
+    </div>
+    <div class="type-specimen">
+      <span class="specimen-label">SPACE MONO 400 — HUD DATA / DAYS SURVIVED / COORDINATES</span>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:0.12em;color:var(--muted);">DAY 147 · ORBITAL STABILITY 38% · THREE BODIES DETECTED</div>
+    </div>
+    <div class="type-specimen">
+      <span class="specimen-label">SPACE MONO 700 — KEY NUMBERS / SCORE</span>
+      <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:32px;letter-spacing:0.04em;">24,891</div>
+    </div>
+
+    <div style="margin-top:40px;">
+      <h4>Type Rules</h4>
+      <div class="card card-sm" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">
+        <div>→ Death titles: Syne 800, size fills 60–75% of screen width, no letter-spacing override, line-height 0.88</div>
+        <div>→ "Your civilization survived X days.": Space Mono, 14–16px, letter-spacing 0.2em, UPPERCASE, opacity 0.5</div>
+        <div>→ Cause sentence: Space Mono 12px, opacity 0.3, no caps</div>
+        <div>→ Buttons: Space Mono 700, 11px, all caps, letter-spacing 0.18em</div>
+        <div>→ HUD day counter: Syne 800 for number, Space Mono 400 for "DAY" label — different sizes create hierarchy without color</div>
+        <div>→ Never use Inter, Roboto, or system-ui anywhere</div>
+      </div>
+    </div>
+
+    <div style="margin-top:56px;">
+      <h2>Sun Personalities</h2>
+      <p>Each sun has a distinct character — motion style, halo color, corona behavior. The player learns to read them subconsciously over time.</p>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:24px;">
+
+        <div class="sun-card">
+          <div class="sun-orb" style="background:radial-gradient(circle at 35% 35%, oklch(90% 0.18 72), oklch(62% 0.20 28)); box-shadow: 0 0 28px oklch(62% 0.20 28 / 0.6);">A</div>
+          <div>
+            <h3 style="color:var(--burned);">Sun Alpha — The Tyrant</h3>
+            <p style="margin:0;font-size:12px;">Largest. Moves with slow gravitational authority. Its corona pulses in amber-red. When it drifts close, the planet's day side starts to glow. Three.js: <code style="color:var(--burned);">PointLight</code> tinted <code>0xff4400</code>, intensity ramps 1→4 on proximity. Halo: additive-blended disc mesh, scale oscillates 1.0→1.15 at 0.3Hz.</p>
+            <div style="margin-top:8px;"><span class="tag tag-burned">BURNED</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">SLOW ORBIT</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">HIGH MASS</span></div>
+          </div>
+        </div>
+
+        <div class="sun-card">
+          <div class="sun-orb" style="background:radial-gradient(circle at 35% 35%, oklch(95% 0.08 220), oklch(70% 0.18 222)); box-shadow: 0 0 28px oklch(70% 0.18 222 / 0.6);">B</div>
+          <div>
+            <h3 style="color:var(--frozen);">Sun Beta — The Ghost</h3>
+            <p style="margin:0;font-size:12px;">Smallest, fastest, erratic elliptical orbit. Blue-white. Its light is cold. When it rules the sky, temperatures drop — blue tint bleeds into skybox. Three.js: <code style="color:var(--frozen);">PointLight</code> tinted <code>0x88ccff</code>. Trail: 12-point ribbon of additive-blended PlaneGeometry quads fading opacity 0.4→0. Ghost-like flicker every 3–7s (intensity ×0.4 for 80ms).</p>
+            <div style="margin-top:8px;"><span class="tag tag-frozen">FROZEN</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">FAST ORBIT</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">UNSTABLE</span></div>
+          </div>
+        </div>
+
+        <div class="sun-card">
+          <div class="sun-orb" style="background:radial-gradient(circle at 35% 35%, oklch(85% 0.12 290), oklch(55% 0.22 292)); box-shadow: 0 0 28px oklch(70% 0.18 292 / 0.6);">C</div>
+          <div>
+            <h3 style="color:var(--chaos);">Sun Gamma — The Stranger</h3>
+            <p style="margin:0;font-size:12px;">Medium mass, chaotic attractor. Its orbit shifts unpredictably — it seems to "notice" the planet. Violet-magenta. When it achieves alignment with the other two, a brief gravitational resonance occurs (the worst outcome). Three.js: <code style="color:var(--chaos);">PointLight</code> tinted <code>0x9955ff</code>. Shader: subtle chromatic ring rendered as TorusGeometry, rotation speed randomly reverses.</p>
+            <div style="margin-top:8px;"><span class="tag tag-chaos">CHAOS</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">UNPREDICTABLE</span><span class="tag" style="border-color:var(--dim);color:var(--dim);">RESONANCE RISK</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top:56px;">
+      <h2>Planet & Starfield</h2>
+      <div class="grid-2" style="margin-top:24px;">
+        <div class="card">
+          <h3>Earth-Like Planet</h3>
+          <p style="font-size:12px;">SphereGeometry, radius ~1.5. Material: MeshPhongMaterial with emissive <code>0x001133</code> (city lights on dark side, always slightly glowing). City light texture: procedural — tiny bright dots scattered with noise. Atmosphere ring: additive-blended TorusGeometry, tinted by dominant sun color. When dying: emissive fades to 0 (frozen) or spikes to orange (burned). The planet should never look fully dead until the death screen appears.</p>
+          <div style="margin-top:12px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #1a4a7a, #0a1a3a 60%, #050d1a);box-shadow: 0 0 20px rgba(100,160,255,0.2), inset -4px -4px 12px rgba(0,0,60,0.8);"></div>
+        </div>
+        <div class="card">
+          <h3>Starfield / Nebula</h3>
+          <p style="font-size:12px;">Three layers: (1) Static deep-field — BufferGeometry of ~3000 points, white, opacity 0.6. (2) Mid nebula — two large PlaneGeometry quads, additive blend, wispy color (deep violet + dark teal), opacity 0.04–0.08. (3) Danger reaction layer — when omen triggers, a faint red/orange wash grows behind everything (fog density increase). Stars never twinkle in safe state; on danger they jitter position ±0.5px via a vertex shader uniform <code>uJitter</code> ramping 0→1.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: DEATH SCREEN DESIGNS -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="death">
+    <div class="section-label"><span class="section-num">02</span> Death Screen Designs</div>
+    <h2>The End Overlay</h2>
+    <p>The death screen is not a popup — it IS the screen. The game world beneath fades to near-invisible. The dead planet remains as a ghost in the lower third. Giant text. No chrome, no borders, no cards. Terror through emptiness.</p>
+    <p style="margin-bottom:32px;">Click any screen to see hover state. Four tint variants match death cause. The title should animate in from scale 0.96 with opacity 0, ease-out-expo, 600ms — no bounce, no slide.</p>
+
+    <div class="grid-2" style="gap:20px; margin-bottom:24px;">
+
+      <!-- BURNED -->
+      <div class="death-frame" style="background: radial-gradient(ellipse at 50% 110%, oklch(62% 0.20 28 / 0.18) 0%, #06060e 65%);">
+        <div class="stars"></div>
+        <div class="planet-ghost" style="width:20%;height:20%;background:radial-gradient(circle, oklch(62% 0.20 28 / 0.3), transparent 70%);"></div>
+        <div class="content">
+          <div class="verdict" style="color:var(--burned); text-shadow: 0 0 60px oklch(62% 0.20 28 / 0.5);">THE DAWN<br>CONSUMED YOU</div>
+          <div class="survived">YOUR CIVILIZATION SURVIVED 147 DAYS</div>
+          <div class="cause">Sun Alpha achieved perihelion. The oceans boiled in silence.</div>
+          <div class="btns">
+            <button class="death-btn" style="color:var(--burned);border-color:oklch(62% 0.20 28 / 0.4);">PLAY AGAIN</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">NEXT GAME</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">COPY SCORE</button>
+          </div>
+          <div style="margin-top:12px;font-size:7px;opacity:0.2;letter-spacing:0.15em;">R TO RESTART · ESC TO PAUSE</div>
+        </div>
+      </div>
+
+      <!-- FROZEN -->
+      <div class="death-frame" style="background: radial-gradient(ellipse at 50% 110%, oklch(74% 0.14 222 / 0.15) 0%, #06060e 65%);">
+        <div class="stars"></div>
+        <div class="planet-ghost" style="width:20%;height:20%;background:radial-gradient(circle, oklch(74% 0.14 222 / 0.3), transparent 70%);"></div>
+        <div class="content">
+          <div class="verdict" style="color:var(--frozen); text-shadow: 0 0 60px oklch(74% 0.14 222 / 0.5);">THE LAST CITY<br>FROZE</div>
+          <div class="survived">YOUR CIVILIZATION SURVIVED 89 DAYS</div>
+          <div class="cause">Sun Beta fled the system. Warmth became a memory.</div>
+          <div class="btns">
+            <button class="death-btn" style="color:var(--frozen);border-color:oklch(74% 0.14 222 / 0.4);">PLAY AGAIN</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">NEXT GAME</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">COPY SCORE</button>
+          </div>
+          <div style="margin-top:12px;font-size:7px;opacity:0.2;letter-spacing:0.15em;">R TO RESTART · ESC TO PAUSE</div>
+        </div>
+      </div>
+
+      <!-- CHAOS -->
+      <div class="death-frame" style="background: radial-gradient(ellipse at 50% 110%, oklch(70% 0.18 292 / 0.15) 0%, #06060e 65%);">
+        <div class="stars"></div>
+        <div class="planet-ghost" style="width:20%;height:20%;background:radial-gradient(circle, oklch(70% 0.18 292 / 0.3), transparent 70%);"></div>
+        <div class="content">
+          <div class="verdict" style="color:var(--chaos); text-shadow: 0 0 60px oklch(70% 0.18 292 / 0.5);">THE HIDDEN MATH<br>WON</div>
+          <div class="survived">YOUR CIVILIZATION SURVIVED 312 DAYS</div>
+          <div class="cause">Orbital resonance completed. The outcome was always certain.</div>
+          <div class="btns">
+            <button class="death-btn" style="color:var(--chaos);border-color:oklch(70% 0.18 292 / 0.4);">PLAY AGAIN</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">NEXT GAME</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">COPY SCORE</button>
+          </div>
+          <div style="margin-top:12px;font-size:7px;opacity:0.2;letter-spacing:0.15em;">R TO RESTART · ESC TO PAUSE</div>
+        </div>
+      </div>
+
+      <!-- COLLAPSE -->
+      <div class="death-frame" style="background: radial-gradient(ellipse at 50% 110%, oklch(68% 0.13 62 / 0.15) 0%, #06060e 65%);">
+        <div class="stars"></div>
+        <div class="planet-ghost" style="width:20%;height:20%;background:radial-gradient(circle, oklch(68% 0.13 62 / 0.3), transparent 70%);"></div>
+        <div class="content">
+          <div class="verdict" style="color:var(--collapse); text-shadow: 0 0 60px oklch(68% 0.13 62 / 0.5);">NO ONE WILL<br>REMEMBER THE ORBIT</div>
+          <div class="survived">YOUR CIVILIZATION SURVIVED 44 DAYS</div>
+          <div class="cause">The tidal forces compounded. History is a closed set.</div>
+          <div class="btns">
+            <button class="death-btn" style="color:var(--collapse);border-color:oklch(68% 0.13 62 / 0.4);">PLAY AGAIN</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">NEXT GAME</button>
+            <button class="death-btn" style="color:rgba(255,255,255,0.3);border-color:rgba(255,255,255,0.1);">COPY SCORE</button>
+          </div>
+          <div style="margin-top:12px;font-size:7px;opacity:0.2;letter-spacing:0.15em;">R TO RESTART · ESC TO PAUSE</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Death title pool -->
+    <div class="card" style="margin-top:32px;">
+      <h4>Death Title Pool — by cause</h4>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:16px;">
+        <div>
+          <div style="color:var(--burned);font-size:10px;letter-spacing:0.2em;margin-bottom:8px;">BURNED</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;line-height:2;">
+            THE DAWN CONSUMED YOU<br>YOUR WORLD BURNED IN SILENCE<br>THE TYRANT TOOK EVERYTHING<br>THE OCEANS LEFT FIRST
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--frozen);font-size:10px;letter-spacing:0.2em;margin-bottom:8px;">FROZEN</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;line-height:2;">
+            THE LAST CITY FROZE<br>YOUR WORLD WENT SILENT<br>GRAVITY FORGOT YOU<br>WARMTH WAS TEMPORARY
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--chaos);font-size:10px;letter-spacing:0.2em;margin-bottom:8px;">CHAOS / SCATTERED</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;line-height:2;">
+            THE HIDDEN MATH WON<br>RESONANCE COMPLETED<br>THE STRANGER DECIDED<br>THE ORBIT WAS NEVER STABLE
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--collapse);font-size:10px;letter-spacing:0.2em;margin-bottom:8px;">COLLAPSE</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;line-height:2;">
+            NO ONE WILL REMEMBER<br>THE ORBIT<br>TIDES DO NOT FORGET<br>THE WEIGHT OF THREE SUNS<br>THE MATH WAS ALWAYS THIS
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transition spec -->
+    <div class="card" style="margin-top:20px;">
+      <h4>Death Transition — Sequence</h4>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;font-size:12px;color:var(--muted);">
+        <div>→ <strong style="color:var(--text);">0ms</strong> — Death detected. Game time stops. CSS overlay begins fade-in from opacity 0.</div>
+        <div>→ <strong style="color:var(--text);">0–400ms</strong> — Overlay reaches opacity 1. Starfield dims to 25%. Background tint appears as radial gradient from bottom.</div>
+        <div>→ <strong style="color:var(--text);">400ms</strong> — Planet fades to ghost state (opacity 0.06) and drifts 20px downward (CSS transform transition).</div>
+        <div>→ <strong style="color:var(--text);">500ms</strong> — Death title appears: scale(0.96) opacity(0) → scale(1) opacity(1), 600ms ease-out-expo.</div>
+        <div>→ <strong style="color:var(--text);">900ms</strong> — Subtitle fades in. Cause text fades in at 1100ms.</div>
+        <div>→ <strong style="color:var(--text);">1200ms</strong> — Buttons appear. Keyboard hint appears last at 1400ms.</div>
+        <div>→ <strong style="color:var(--text);">No sound effects</strong> — silence is part of the horror. Optional: a single very low-frequency tone at 0ms, 0.2s duration, volume 0.05.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: HUD LAYOUTS -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="hud">
+    <div class="section-label"><span class="section-num">03</span> UI Layout</div>
+    <h2>Desktop HUD</h2>
+    <p>Minimal. All HUD elements sit at screen edges. Center is always clear — the chaos belongs to the player, not the UI. No backgrounds behind HUD text; raw monospace on dark scene only.</p>
+
+    <div class="hud-frame" style="margin-top:24px;">
+      <!-- TOP LEFT: Day counter -->
+      <div class="hud-element" style="top:5%;left:3%;padding:6px 10px;background:transparent;border:none;flex-direction:column;align-items:flex-start;">
+        <div style="font-size:7px;letter-spacing:0.2em;opacity:0.4;">DAY</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:rgba(255,255,255,0.9);line-height:1;">147</div>
+      </div>
+
+      <!-- TOP LEFT: Stability bar -->
+      <div style="position:absolute;top:14%;left:3%;display:flex;flex-direction:column;gap:3px;">
+        <div style="font-size:6px;letter-spacing:0.2em;color:rgba(255,255,255,0.25);">ORBITAL STABILITY</div>
+        <div style="width:90px;height:2px;background:rgba(255,255,255,0.1);border-radius:1px;">
+          <div style="width:62%;height:100%;background:oklch(70% 0.18 292 / 0.7);border-radius:1px;"></div>
+        </div>
+      </div>
+
+      <!-- TOP RIGHT: High score -->
+      <div class="hud-element" style="top:5%;right:3%;padding:6px 10px;background:transparent;border:none;flex-direction:column;align-items:flex-end;">
+        <div style="font-size:6px;letter-spacing:0.2em;opacity:0.3;">BEST</div>
+        <div style="font-size:10px;font-weight:700;opacity:0.4;letter-spacing:0.08em;">24,891</div>
+      </div>
+
+      <!-- TOP CENTER: Sun threat indicators -->
+      <div style="position:absolute;top:4%;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:oklch(62% 0.20 28 / 0.7);box-shadow:0 0 8px oklch(62% 0.20 28 / 0.6);"></div>
+          <div style="font-size:5px;opacity:0.3;letter-spacing:0.1em;">α</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:oklch(74% 0.14 222 / 0.5);box-shadow:0 0 6px oklch(74% 0.14 222 / 0.4);"></div>
+          <div style="font-size:5px;opacity:0.3;letter-spacing:0.1em;">β</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:oklch(70% 0.18 292 / 0.6);box-shadow:0 0 7px oklch(70% 0.18 292 / 0.5);"></div>
+          <div style="font-size:5px;opacity:0.3;letter-spacing:0.1em;">γ</div>
+        </div>
+      </div>
+
+      <!-- BOTTOM LEFT: Mode indicators -->
+      <div style="position:absolute;bottom:6%;left:3%;display:flex;gap:8px;">
+        <div style="font-size:6px;letter-spacing:0.15em;padding:4px 8px;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);">EQUILIBRIUM</div>
+        <div style="font-size:6px;letter-spacing:0.15em;padding:4px 8px;border:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.2);">HIBERNATION</div>
+        <div style="font-size:6px;letter-spacing:0.15em;padding:4px 8px;border:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.2);">SACRIFICE</div>
+      </div>
+
+      <!-- BOTTOM RIGHT: Portal -->
+      <div style="position:absolute;bottom:6%;right:3%;font-size:6px;letter-spacing:0.12em;color:rgba(255,255,255,0.2);display:flex;align-items:center;gap:5px;">
+        <div style="width:4px;height:4px;border-radius:50%;background:oklch(70% 0.18 292);animation:pulse-dot 2s infinite;"></div>
+        VIBE JAM
+      </div>
+
+      <!-- CENTER SCENE PLACEHOLDER -->
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+        <div style="width:60%;height:60%;border:1px dashed rgba(255,255,255,0.04);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;opacity:0.15;letter-spacing:0.15em;">THREE.JS CANVAS · THREE SUNS + PLANET</div>
+      </div>
+
+      <!-- DANGER OMEN (shown top center, large) -->
+      <div style="position:absolute;top:22%;left:50%;transform:translateX(-50%);font-size:7px;letter-spacing:0.25em;color:oklch(62% 0.20 28 / 0.8);animation:pulse-dot 1.5s infinite;">⚠ PERIHELION APPROACH · 14 DAYS</div>
+    </div>
+
+    <div style="margin-top:40px;">
+      <h2>Mobile HUD</h2>
+      <p>On mobile, the day counter moves to top-left, the sun threat dots move to top-right. Survival mode buttons become compact icon dots along the bottom. No stability bar — replaced by a subtle red screen-edge glow when danger is high.</p>
+
+      <div style="display:flex;gap:40px;align-items:flex-start;margin-top:24px;flex-wrap:wrap;">
+        <div>
+          <div class="mobile-frame">
+            <!-- top bar -->
+            <div style="position:absolute;top:4%;left:5%;font-size:8px;font-family:'Syne',sans-serif;font-weight:800;color:rgba(255,255,255,0.9);">147</div>
+            <div style="position:absolute;top:4%;left:5%;margin-top:12px;font-size:5px;letter-spacing:0.15em;color:rgba(255,255,255,0.3);">DAYS</div>
+            <div style="position:absolute;top:4%;right:5%;display:flex;gap:4px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:oklch(62% 0.20 28 / 0.8);"></div>
+              <div style="width:5px;height:5px;border-radius:50%;background:oklch(74% 0.14 222 / 0.5);margin-top:1px;"></div>
+              <div style="width:5px;height:5px;border-radius:50%;background:oklch(70% 0.18 292 / 0.6);margin-top:1px;"></div>
+            </div>
+            <!-- scene -->
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:6px;opacity:0.08;letter-spacing:0.1em;">CANVAS</div>
+            <!-- mode buttons -->
+            <div style="position:absolute;bottom:4%;left:50%;transform:translateX(-50%);display:flex;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:6px;color:rgba(255,255,255,0.6);">EQ</div>
+              <div style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:6px;color:rgba(255,255,255,0.2);">HB</div>
+              <div style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:6px;color:rgba(255,255,255,0.2);">SC</div>
+            </div>
+            <!-- danger glow -->
+            <div style="position:absolute;inset:0;border-radius:12px;box-shadow:inset 0 0 20px oklch(62% 0.20 28 / 0.15);pointer-events:none;"></div>
+          </div>
+          <div style="text-align:center;font-size:10px;color:var(--dim);margin-top:8px;">MOBILE — DANGER STATE</div>
+        </div>
+
+        <div class="card" style="flex:1;min-width:220px;">
+          <h4>Mobile-Specific Rules</h4>
+          <ul style="color:var(--muted);font-size:12px;list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            <li>→ Minimum tap target: 44px for all buttons</li>
+            <li>→ HUD font sizes: 12px min for any readable text</li>
+            <li>→ Death screen title: clamp(32px, 9vw, 80px)</li>
+            <li>→ Three mode buttons: circular, 52px on mobile</li>
+            <li>→ Danger edge-glow replaces stability bar (screen-edge box-shadow)</li>
+            <li>→ Sun labels hidden on mobile, only colored dots remain</li>
+            <li>→ "R to restart" hint hidden on mobile (no keyboard)</li>
+            <li>→ Bottom safe area padding: env(safe-area-inset-bottom)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:48px;">
+      <h2>Pause Menu</h2>
+      <div class="pause-frame" style="margin-top:24px;">
+        <div style="position:absolute;inset:0;background:rgba(6,6,14,0.75);backdrop-filter:blur(8px);"></div>
+        <div class="pause-panel" style="position:relative;z-index:2;">
+          <div style="font-size:9px;letter-spacing:0.3em;color:var(--muted);margin-bottom:20px;">PAUSED</div>
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:180px;">
+            <div style="padding:10px;border:1px solid rgba(255,255,255,0.2);font-size:10px;letter-spacing:0.2em;text-align:center;cursor:pointer;color:var(--text);">RESUME</div>
+            <div style="padding:10px;border:1px solid var(--border);font-size:10px;letter-spacing:0.2em;text-align:center;color:var(--muted);">RESTART</div>
+            <div style="padding:10px;border:1px solid var(--border);font-size:10px;letter-spacing:0.2em;text-align:center;color:var(--muted);">NEXT GAME</div>
+            <div style="padding:10px;border:1px solid var(--border);font-size:10px;letter-spacing:0.2em;text-align:center;color:var(--muted);">COPY SCORE</div>
+          </div>
+          <div style="margin-top:20px;font-size:8px;letter-spacing:0.15em;color:var(--dim);">ESC TO RESUME</div>
+          <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:8px;letter-spacing:0.1em;color:var(--dim);">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--chaos);animation:pulse-dot 2s infinite;"></div>
+            VIBE JAM PORTAL
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:12px;font-size:11px;">Blur is cheap (backdrop-filter) and makes the game world feel paused without hiding it. The Vibe Jam portal link sits quietly at the bottom — discoverable, not intrusive.</p>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: GAMEPLAY READABILITY -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="readability">
+    <div class="section-label"><span class="section-num">04</span> Gameplay Readability</div>
+    <h2>Communicating Danger Without Clutter</h2>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:32px;">
+
+      <div class="read-card">
+        <div class="read-icon" style="background:oklch(62% 0.20 28 / 0.1);border:1px solid oklch(62% 0.20 28 / 0.3);">
+          <div style="width:12px;height:12px;border-radius:50%;background:oklch(62% 0.20 28 / 0.9);box-shadow:0 0 10px oklch(62% 0.20 28 / 0.8);"></div>
+        </div>
+        <div>
+          <h3>Danger — Screen-Edge Heat</h3>
+          <p style="font-size:12px;margin:0;">As a sun approaches danger proximity, a colored vignette grows inward from the screen edges. Burned → red-orange. Frozen → deep blue. The vignette is a pure CSS <code>box-shadow: inset 0 0 200px COLOR</code> on a fixed overlay div. Opacity ramps 0→0.35 over 30 seconds before the threshold. No sudden flashes. Players feel it before they see it.</p>
+        </div>
+      </div>
+
+      <div class="read-card">
+        <div class="read-icon" style="background:oklch(70% 0.18 292 / 0.1);border:1px solid oklch(70% 0.18 292 / 0.3);">
+          <div style="font-size:18px;">◈</div>
+        </div>
+        <div>
+          <h3>Omens — Glitch Text Intrusion</h3>
+          <p style="font-size:12px;margin:0;">When an omen triggers, a single line of monospace text appears at top-center, letter-spacing wide, opacity 0.7, 12px. It fades in over 500ms, stays 4s, fades out over 1s. Use CSS <code>@keyframes</code> to slightly distort letter-spacing during fade-in (0.5em→0.25em). Examples: "⚠ ALPHA APPROACH · 12 DAYS" or "RESONANCE BUILDING · 3%". Never more than one omen line at once. Color matches the relevant sun.</p>
+        </div>
+      </div>
+
+      <div class="read-card">
+        <div class="read-icon" style="background:oklch(68% 0.13 62 / 0.1);border:1px solid oklch(68% 0.13 62 / 0.3);">
+          <div style="width:14px;height:14px;border-radius:2px;border:2px solid oklch(68% 0.13 62 / 0.9);background:transparent;"></div>
+        </div>
+        <div>
+          <h3>Gravity Anchors — Quiet Presence</h3>
+          <p style="font-size:12px;margin:0;">Anchors appear as faint crosshair markers — a thin ring (TorusGeometry, wireframe, radius 0.3) with four radiating lines (thin LineSegments). Color: dark gold (collapse palette). They pulse scale 1.0→1.05 at 0.5Hz — alive but not distracting. When the player targets one, outline brightens. No fill, no glow until activation. Activated: inner ring collapses inward, opacity spikes to 1 for 200ms, then settles.</p>
+        </div>
+      </div>
+
+      <div class="read-card">
+        <div class="read-icon" style="background:oklch(70% 0.18 292 / 0.1);border:1px solid oklch(70% 0.18 292 / 0.3);">
+          <div style="width:24px;height:24px;border-radius:50%;border:2px solid oklch(70% 0.18 292 / 0.8);animation:pulse-dot 1s infinite;"></div>
+        </div>
+        <div>
+          <h3>Focus Pulse — Rings of Clarity</h3>
+          <p style="font-size:12px;margin:0;">On activation: three concentric rings emit from the planet center (CSS absolute divs or Three.js ring meshes). They scale outward from 0 to 3× over 800ms, fade opacity 1→0. Color: match current stability color (cool violet = safe, warm orange = stressed). The rings are the visual "acknowledgment" — the player knows the action registered. No sound needed. Cheap: three divs, <code>animation: pulse-ring 0.8s ease-out forwards</code>.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;">
+        <h3>Three Survival Modes — Visual Identity</h3>
+        <div class="grid-3" style="margin-top:16px;">
+          <div class="card card-sm" style="border-color:rgba(255,255,255,0.15);">
+            <h4 style="color:var(--text);">EQUILIBRIUM</h4>
+            <p style="font-size:11px;margin:0;">Default. Planet atmosphere is calm blue-green. Stability bar is violet. Mode label outlined. Background nebula cool-toned.</p>
+          </div>
+          <div class="card card-sm" style="border-color:oklch(74% 0.14 222 / 0.3);">
+            <h4 style="color:var(--frozen);">HIBERNATION</h4>
+            <p style="font-size:11px;margin:0;">Planet dims, emissive drops 40%. City lights fade slightly. Atmosphere gains blue tint. Mode label turns frozen blue — suggests deliberately going dark to survive cold.</p>
+          </div>
+          <div class="card card-sm" style="border-color:oklch(62% 0.20 28 / 0.3);">
+            <h4 style="color:var(--burned);">SACRIFICE</h4>
+            <p style="font-size:11px;margin:0;">Planet atmosphere reddens. Emissive spikes warm. Mode label turns amber. Screen-edge vignette burns slightly — you're choosing controlled burn over uncontrolled. Risky, readable.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5: JUICE LIST -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="juice">
+    <div class="section-label"><span class="section-num">05</span> Juice List</div>
+    <h2>10 Effects That Make It Feel Premium</h2>
+    <p>Each effect is achievable in under 30 minutes. Each amplifies the existing game state rather than adding new systems.</p>
+
+    <div style="margin-top:32px;">
+
+      <div class="juice-item">
+        <div class="juice-num">01</div>
+        <div>
+          <div class="juice-name">Screen-Edge Vignette Danger</div>
+          <div class="juice-desc">A fixed CSS div with <code>box-shadow: inset 0 0 180px COLOR</code>, pointer-events:none. Opacity driven by nearest sun's proximity. Zero Three.js overhead. Makes every monitor edge feel like a warning.</div>
+          <span class="juice-cost">~15 MIN · PURE CSS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">02</div>
+        <div>
+          <div class="juice-name">Camera Micro-Shake on Death</div>
+          <div class="juice-desc">On death trigger: <code>camera.position.x += Math.sin(t * 40) * 0.05 * decay</code> for 600ms where decay goes 1→0. Not a screenshake — a gentle tremor, like the planet is sighing. Stops before death screen appears.</div>
+          <span class="juice-cost">~20 MIN · 5 LINES JS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">03</div>
+        <div>
+          <div class="juice-name">Star Jitter on Danger</div>
+          <div class="juice-desc">BufferGeometry star positions get a <code>uJitter</code> uniform (0→1) passed to vertex shader. Stars wiggle ±0.3 units at high danger. When safe, jitter returns to 0 over 3s. Makes the entire universe feel unstable. The background itself becomes a readability signal.</div>
+          <span class="juice-cost">~30 MIN · VERTEX SHADER</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">04</div>
+        <div>
+          <div class="juice-name">Day Number Increment Pop</div>
+          <div class="juice-desc">Every new day, the day counter scales 1.0→1.18→1.0 over 300ms (CSS keyframe). A micro-event the player notices without being told. Tiny but makes the score feel earned. On milestone days (50, 100, 200…) add a brief golden glow.</div>
+          <span class="juice-cost">~10 MIN · CSS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">05</div>
+        <div>
+          <div class="juice-name">Focus Pulse Ring Emission</div>
+          <div class="juice-desc">Three CSS divs, border-radius 50%, positioned absolute over canvas center. On focus action: animate from scale(0.1) opacity(0.8) to scale(3) opacity(0), staggered 0/150/300ms. Color matches current mode. Costs nothing but a DOM append and CSS animation.</div>
+          <span class="juice-cost">~15 MIN · CSS ANIMATION</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">06</div>
+        <div>
+          <div class="juice-name">Sun Halo Breathing</div>
+          <div class="juice-desc">Each sun has a PlaneGeometry disc (additive blend, radial gradient texture drawn once to canvas). Scale oscillates independently: Alpha at 0.28Hz, Beta at 0.47Hz, Gamma at 0.33Hz. Slight size variation makes them feel alive. No animation loop change needed — multiply by sin(time × freq) in existing update loop.</div>
+          <span class="juice-cost">~20 MIN · THREE.JS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">07</div>
+        <div>
+          <div class="juice-name">City Lights Fade-to-Dark on Death Approach</div>
+          <div class="juice-desc">Planet emissive map has city light dots. As stability drops below 20%, emissive intensity lerps toward 0. The planet literally going dark as civilization fails is a visceral signal that needs no UI. Costs: one <code>mesh.material.emissiveIntensity = lerp(1, 0, stress)</code>.</div>
+          <span class="juice-cost">~10 MIN · 1 LINE</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">08</div>
+        <div>
+          <div class="juice-name">Omen Text Letter-Spacing Entrance</div>
+          <div class="juice-desc">Omen CSS div animates: letter-spacing from 0.8em → 0.25em over 400ms as it fades in. This creates a "closing in" effect — the text gathers itself as if materializing from noise. Done with a single <code>@keyframes</code>. Makes the omen feel different from all other UI elements.</div>
+          <span class="juice-cost">~10 MIN · CSS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">09</div>
+        <div>
+          <div class="juice-name">Death Title Scale-In</div>
+          <div class="juice-desc">Death title starts at scale(0.94) opacity(0). Eases to scale(1) opacity(1) with <code>cubic-bezier(0.16, 1, 0.3, 1)</code> (expo-out) over 700ms. This single animation makes the death screen feel like a cinematic reveal instead of a popup. Zero JS needed — pure CSS transition on class add.</div>
+          <span class="juice-cost">~5 MIN · CSS</span>
+        </div>
+      </div>
+
+      <div class="juice-item">
+        <div class="juice-num">10</div>
+        <div>
+          <div class="juice-name">High Score Moment — Gold Pulse</div>
+          <div class="juice-desc">When player surpasses their best score: the day counter briefly turns <code>oklch(68% 0.13 62)</code> (dark gold) with a 400ms glow pulse, then returns to white. No text, no popup — just a color shift the attentive player notices. On death screen, if it was a new high score, the subtitle line gains a gold asterisk.</div>
+          <span class="juice-cost">~15 MIN · CSS + JS</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 6: IMPLEMENTATION NOTES -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <section id="impl">
+    <div class="section-label"><span class="section-num">06</span> Implementation Notes for Claude Code</div>
+    <h2>Concise Change List</h2>
+    <p>Prioritized by impact. Avoid rewriting game logic — all changes are additive overlays and style passes.</p>
+
+    <div class="impl-cat">FONTS & BASE STYLES</div>
+    <ul class="impl-list">
+      <li>Add Google Fonts import for Syne (800) + Space Mono (400,700) in <code>&lt;head&gt;</code></li>
+      <li>Set <code>body { background: #06060e; font-family: 'Space Mono', monospace; }</code></li>
+      <li>Wrap entire Three.js canvas in a <code>#game-root</code> div; all overlay divs are siblings inside it</li>
+    </ul>
+
+    <div class="impl-cat">DEATH SCREEN OVERLAY</div>
+    <ul class="impl-list">
+      <li>Create <code>#death-overlay</code> — <code>position:fixed; inset:0; z-index:100; display:none;</code> — shown on death event</li>
+      <li>Death overlay background: <code>radial-gradient(ellipse at 50% 120%, VAR_TINT/0.2 0%, #06060e 60%)</code> — set VAR_TINT via JS class on overlay: <code>.burned | .frozen | .chaos | .collapse</code></li>
+      <li>Stars div (position:absolute, background-image radial-gradient dots, opacity:0.25) inside overlay — static, no animation</li>
+      <li>Planet ghost div: <code>position:absolute; bottom:8%; left:50%; transform:translateX(-50%); width:15vmin; height:15vmin; border-radius:50%; background: radial-gradient(circle, TINT/0.15, transparent 70%);</code></li>
+      <li>Death title: <code>font-family:'Syne'; font-weight:800; font-size:clamp(36px,7vw,96px); line-height:0.9; letter-spacing:-0.02em;</code> — color = CSS var per death type</li>
+      <li>On show: add class <code>.visible</code> to overlay; CSS transition on opacity 0→1 (400ms). Title gets separate class <code>.animate-in</code>: <code>transform:scale(0.94)→scale(1); opacity:0→1; transition: 700ms cubic-bezier(0.16,1,0.3,1);</code> delayed 400ms</li>
+      <li>Subtitle: <code>font-family:'Space Mono'; font-size:clamp(10px,1.2vw,14px); letter-spacing:0.2em; opacity:0.45; text-transform:uppercase;</code></li>
+      <li>Cause text: Space Mono 12px, opacity 0.3, not all-caps — injected dynamically by cause type</li>
+      <li>Buttons: <code>font-family:'Space Mono'; font-size:11px; letter-spacing:0.18em; padding:14px 28px; background:transparent; border:1px solid TINT/0.4; border-radius:2px; cursor:pointer;</code> — PLAY AGAIN uses tint color, others use rgba(255,255,255,0.25)</li>
+      <li>Stagger button appearance: each button has <code>animation-delay: 1200ms, 1300ms, 1400ms</code> fade-in</li>
+      <li>COPY SCORE button: copies formatted string to clipboard via <code>navigator.clipboard.writeText()</code></li>
+    </ul>
+
+    <div class="impl-cat">HUD</div>
+    <ul class="impl-list">
+      <li>Day counter: <code>#hud-day</code> — Syne 800, 36px, top-left. On day increment: add class <code>.pop</code> → CSS keyframe scale(1)→scale(1.18)→scale(1) 300ms, then remove class</li>
+      <li>Stability bar: <code>#hud-stability</code> — 80px wide, 2px tall, border-radius:1px. Inner fill width driven by <code>stability%</code>. Color transitions burned/frozen/chaos/collapse via JS style update</li>
+      <li>Three sun dots (top-center): fixed-size colored circles, opacity driven by sun threat level (0.3 safe → 1.0 critical). Add subtle glow box-shadow that scales with threat</li>
+      <li>Mode buttons (desktop: text labels at bottom-left): active mode has border-color 0.25, others 0.06. No background fill on any mode button</li>
+      <li>Vibe Jam portal: bottom-right, 10px Space Mono, opacity 0.2, pulsing dot, &lt;a&gt; tag wrapping it</li>
+      <li>Omen text: <code>#hud-omen</code> — top-center, absolute, initially opacity:0. Show: animate letter-spacing 0.6em→0.2em + opacity 0→0.75 over 400ms. Auto-hide after 4s</li>
+    </ul>
+
+    <div class="impl-cat">DANGER VIGNETTE</div>
+    <ul class="impl-list">
+      <li>Add <code>#vignette</code> — <code>position:fixed; inset:0; pointer-events:none; z-index:50; border-radius:0; transition: box-shadow 1s ease;</code></li>
+      <li>In game loop: compute <code>dangerColor</code> from nearest threatening sun and <code>dangerAlpha</code> 0→0.35. Set <code>vignette.style.boxShadow = `inset 0 0 200px rgba(R,G,B,${dangerAlpha})`</code></li>
+      <li>Reset to no box-shadow when danger = 0. That's the entire system.</li>
+    </ul>
+
+    <div class="impl-cat">THREE.JS SCENE</div>
+    <ul class="impl-list">
+      <li>Sun halos: for each sun, create PlaneGeometry(4,4) with MeshBasicMaterial, map=canvas texture (radial gradient drawn once), blending=AdditiveBlending, depthWrite:false. Scale in update loop: <code>halo.scale.setScalar(1 + 0.12 * Math.sin(t * freq))</code></li>
+      <li>Planet emissive: <code>planetMat.emissiveIntensity = THREE.MathUtils.lerp(1, 0, stressLevel)</code> each frame. stressLevel 0(safe)→1(critical)</li>
+      <li>Star jitter: pass <code>uJitter</code> uniform to star vertex shader. In shader: <code>vec3 pos = position + vec3(sin(position.y*10.0)*uJitter, cos(position.x*10.0)*uJitter, 0.0) * 0.3;</code></li>
+      <li>Anchor crosshairs: TorusGeometry(0.25,0.01,8,32) wireframe + 4 LineSegments (short arms). MeshBasicMaterial color 0xc49a30, opacity 0.4. Scale oscillation: <code>1 + 0.04 * Math.sin(t * 3.2)</code></li>
+      <li>Focus pulse: CSS rings only (no Three.js mesh needed). Emit 3 divs from <code>#pulse-container</code> absolutely centered over canvas. Reuse with an object pool of 3 ring divs.</li>
+    </ul>
+
+    <div class="impl-cat">DEATH TRANSITION SEQUENCE</div>
+    <ul class="impl-list">
+      <li>On death: (1) set game state to DEAD, stop physics/time, (2) 0ms: show overlay div, start opacity transition, (3) 400ms setTimeout: planet ghost div appears, title animates in, (4) 900ms: subtitle, (5) 1100ms: cause text, (6) 1200ms: buttons stagger in</li>
+      <li>All timings via setTimeout chains or CSS animation-delay — no animation library needed</li>
+      <li>On PLAY AGAIN: hide overlay immediately (opacity:0, display:none after 300ms), reset game state, restart loop</li>
+    </ul>
+
+    <div class="impl-cat">PERFORMANCE NOTES</div>
+    <ul class="impl-list">
+      <li>All overlays use <code>will-change: opacity, transform</code> only when animating; remove after animation completes</li>
+      <li>Vignette box-shadow is GPU-composited; safe to update every frame via RAF</li>
+      <li>Sun halo canvas texture: draw once at init (64×64 px), reuse. Never recreate per-frame.</li>
+      <li>Focus pulse rings: pool 3 divs, toggle classes — never appendChild during gameplay</li>
+      <li>Omen text: single div, innerHTML replace — no DOM creation on trigger</li>
+    </ul>
+
+  </section>
+
+  <!-- FOOTER -->
+  <div style="padding:40px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; border-top:1px solid var(--border); color:var(--dim); font-size:10px; letter-spacing:0.1em;">
+    <span>THREE SUNS: CHAOTIC DAWN — VISUAL DESIGN DOCUMENT</span>
+    <div class="portal-badge">
+      <div class="portal-dot"></div>
+      VIBE JAM 2026
+    </div>
+    <span>APR 27 2026 · FOR HACKATHON SUBMISSION</span>
+  </div>
+
+</div>
+
+</body>
+</html>

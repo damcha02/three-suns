@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Three Suns: Chaotic Dawn - a Vibe Jam 2026 browser survival game." />
+    <title>Three Suns: Chaotic Dawn</title>
+    <script async src="https://vibej.am/2026/widget.js"></script>
+    <script src="https://vibej.am/2026/portal/sample.js"></script>
+    <script type="module" crossorigin src="/assets/index-BobA9YUS.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CSROAf_s.css">
+  </head>
+  <body>
+    <main id="game-root">
+      <canvas id="game-canvas" aria-label="Three Suns game canvas"></canvas>
+      <section id="hud" aria-live="polite">
+        <div class="hud-top">
+          <div>
+            <h1>THREE SUNS</h1>
+            <p class="subtitle">Chaotic Dawn</p>
+            <div class="hud-links">
+              <button id="info-button" type="button" class="hud-link-btn">INFO</button>
+              <button id="story-button" type="button" class="hud-link-btn">STORY</button>
+            </div>
+          </div>
+          <div class="stats">
+            <span>Day <strong id="days">0</strong></span>
+            <span>Stability <strong id="stability">100%</strong></span>
+            <span>Mode <strong id="mode-readout">SHIELD</strong></span>
+            <span>Best <strong id="high-score">0</strong></span>
+          </div>
+        </div>
+        <div id="warnings">omens quiet</div>
+        <div id="toast-line"></div>
+        <div id="hint-line">Click/tap to place gravity anchors</div>
+        <div class="meters" aria-hidden="true">
+          <span id="heat-meter"></span>
+          <span id="cold-meter"></span>
+          <span id="chaos-meter"></span>
+          <span id="signal-meter"></span>
+        </div>
+        <div id="mode-controls" class="mode-controls" aria-label="Civilization modes">
+          <button type="button" data-mode="shield">1 Shield</button>
+          <button type="button" data-mode="hibernation">2 Sleep</button>
+          <button type="button" data-mode="observatory">3 Observe</button>
+        </div>
+        <div id="mode-info">
+          <strong id="mode-name">MODE: SHIELD</strong>
+          <span id="mode-effect">SHIELD: solar aura resistance ↑ cold risk ↑</span>
+          <span id="focus-status">FOCUS READY</span>
+        </div>
+        <button id="portal-badge" type="button" aria-label="Next Vibe Jam game"><span></span>VIBE JAM</button>
+        <p class="instructions">Sun contact is fatal. Modes reduce aura damage only. Click to place anchors. Signal limits anchors. Space / FOCUS = slow time. P = LOW FX.</p>
+      </section>
+      <section id="mobile-controls" aria-label="Touch controls">
+        <button type="button" data-action="focus">FOCUS</button>
+        <button type="button" data-mode="shield">Shield</button>
+        <button type="button" data-mode="hibernation">Sleep</button>
+        <button type="button" data-mode="observatory">Observe</button>
+        <button type="button" data-action="pause">Pause</button>
+      </section>
+      <section id="pause-menu" class="hidden" aria-label="Pause menu">
+        <div class="pause-panel">
+          <p class="kicker">orbital pause</p>
+          <h2>PAUSED</h2>
+          <div class="pause-actions">
+            <button id="resume-button" type="button">Resume</button>
+            <button id="pause-copy-button" type="button">Copy Score</button>
+            <div class="portal-btn-wrap">
+              <button id="pause-next-button" type="button">Next Game</button>
+              <span class="portal-hint">portal to the next vibe jam game</span>
+            </div>
+            <button id="pause-restart-button" type="button">Restart</button>
+            <button id="mute-button" type="button">Mute</button>
+            <button id="pause-info-button" type="button">Info</button>
+            <button id="pause-story-button" type="button">Story</button>
+            <button id="controls-button" type="button">Controls</button>
+          </div>
+          <p id="controls-text">Sun contact is always fatal — modes reduce nearby aura damage only. Click to place anchors. Space / FOCUS slows time. 1 Shield, 2 Sleep, 3 Observe. M mute. P LOW FX.</p>
+        </div>
+      </section>
+      <section id="death-screen" class="hidden">
+        <div class="death-planet-ghost" aria-hidden="true"></div>
+        <div class="death-content">
+          <p class="kicker">civilization report</p>
+          <h2 id="death-title">THE DAWN ENDED</h2>
+          <p id="death-stats"></p>
+          <p id="death-message"></p>
+          <p id="death-high-score"></p>
+          <div class="death-actions">
+            <button id="restart-button" type="button">Play Again</button>
+            <button id="share-button" type="button">Copy Score</button>
+            <div class="portal-btn-wrap">
+              <button id="next-button" type="button">Next Game</button>
+              <span class="portal-hint">portal to the next vibe jam game</span>
+            </div>
+          </div>
+          <p id="share-status" aria-live="polite"></p>
+        </div>
+      </section>
+      <section id="info-screen" class="hidden" aria-label="How to survive">
+        <div class="overlay-panel">
+          <p class="kicker">field guide</p>
+          <h2>HOW TO SURVIVE</h2>
+          <ul class="overlay-list">
+            <li>Click or tap to place gravity anchors.</li>
+            <li>Anchors cost Signal. Signal regenerates during stable orbits.</li>
+            <li>Space / FOCUS slows time briefly — use it to escape danger.</li>
+            <li><strong>1 Shield</strong> — protects from solar aura heat. Not from direct contact.</li>
+            <li><strong>2 Sleep</strong> — protects from deep cold and restores Signal faster.</li>
+            <li><strong>3 Observe</strong> — clearer omens and cheaper anchors, but weaker protection.</li>
+            <li><strong>Direct sun contact is fatal.</strong> No mode prevents collision.</li>
+            <li>Survive as many days as possible.</li>
+          </ul>
+          <p class="overlay-footnote">Modes reduce aura danger. They do not stop direct sun contact.</p>
+          <div class="overlay-actions">
+            <button id="info-resume-button" type="button">Resume</button>
+            <button id="info-restart-button" type="button">Restart</button>
+            <div class="portal-btn-wrap">
+              <button id="info-next-button" type="button">Next Game</button>
+              <span class="portal-hint">portal to the next vibe jam game</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="story-screen" class="hidden" aria-label="Story">
+        <div class="overlay-panel">
+          <p class="kicker">origin record</p>
+          <h2>THE LAST ORBIT</h2>
+          <div class="story-body">
+            <p>In a system where dawn has no pattern, one living world remains.</p>
+            <p>Three suns rule the sky. Alpha burns like a tyrant. Beta vanishes into cold silence. Gamma bends gravity until truth becomes rumor.</p>
+            <p>Your civilization no longer asks to be saved forever. It asks for one more day.</p>
+            <p>Place anchors. Read omens. Slow time. Choose how the world endures.</p>
+            <p>The universe is not evil. It is only unstable.</p>
+          </div>
+          <p class="overlay-footnote">The portal leads to the next Vibe Jam world.</p>
+          <div class="overlay-actions">
+            <button id="story-resume-button" type="button">Resume</button>
+            <button id="story-restart-button" type="button">Restart</button>
+            <div class="portal-btn-wrap">
+              <button id="story-next-button" type="button">Next Game</button>
+              <span class="portal-hint">portal to the next vibe jam game</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
