@@ -2330,6 +2330,7 @@ window.addEventListener('pointerdown', (event) => {
   placeAnchor(event.clientX, event.clientY);
 }, { passive: true });
 window.addEventListener('keydown', (event) => {
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
   if (event.code === 'Escape') {
     if (tutorial.active) {
       finishTutorial();
