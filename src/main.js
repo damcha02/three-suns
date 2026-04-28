@@ -125,6 +125,13 @@ const TUTORIAL_KEY = 'three-suns-tutorial-complete';
 const RUN_MODE_KEY = 'three-suns-run-mode';
 const LEVEL_HIGH_KEY = 'three-suns-highest-level';
 const LEADERBOARD_KEY = 'three-suns-leaderboard';
+const SUPABASE_URL = 'https://eakybrckrrtvmgycgsey.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_bifkfp00l6aTu22tvWXYpg_oVoC1Jjb';
+const SUPABASE_HEADERS = {
+  apikey: SUPABASE_ANON_KEY,
+  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+  'Content-Type': 'application/json',
+};
 const COMET_WARNING_LEAD = 2;
 const DEBUG_DEATH_CAUSE = false;
 
@@ -1023,51 +1030,78 @@ function setHighestLevel(level) {
   updateScoreReadout();
 }
 
-function getLeaderboard() {
+// localStorage fallback — used when Supabase is unreachable
+function getLocalLeaderboard() {
   try { return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]'); } catch { return []; }
 }
 
-function addLeaderboardEntry(name, mode, days, level) {
-  const board = getLeaderboard();
-  board.push({ name: (name || 'Pilot').trim().slice(0, 24) || 'Pilot', mode, days, level, timestamp: Date.now() });
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
-}
-
-function getSortedLeaderboard() {
-  return getLeaderboard().sort((a, b) => {
-    const aLvl = a.mode === 'level' ? a.level : 0;
-    const bLvl = b.mode === 'level' ? b.level : 0;
-    if (bLvl !== aLvl) return bLvl - aLvl;
+function saveLocalEntry(name, mode, days, level) {
+  const board = getLocalLeaderboard();
+  board.push({ player_name: name, mode, days, level, created_at: new Date().toISOString() });
+  board.sort((a, b) => {
+    const aL = a.mode === 'level' ? a.level : 0;
+    const bL = b.mode === 'level' ? b.level : 0;
+    if (bL !== aL) return bL - aL;
     return b.days - a.days;
   });
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board.slice(0, 20)));
+}
+
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?select=*&order=level.desc,days.desc&limit=10`,
+      { headers: SUPABASE_HEADERS }
+    );
+    if (!res.ok) throw new Error('fetch failed');
+    return await res.json();
+  } catch {
+    return getLocalLeaderboard().slice(0, 10);
+  }
+}
+
+async function insertScore(name, mode, days, level) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+      method: 'POST',
+      headers: { ...SUPABASE_HEADERS, Prefer: 'return=minimal' },
+      body: JSON.stringify({ player_name: name, mode, days, level }),
+    });
+    if (!res.ok) throw new Error('insert failed');
+    return true;
+  } catch {
+    saveLocalEntry(name, mode, days, level);
+    return false;
+  }
 }
 
 function escHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function renderLeaderboard() {
-  const entries = getSortedLeaderboard();
+async function renderLeaderboard() {
+  leaderboardContent.innerHTML = '<p class="leaderboard-empty">Loading…</p>';
+  const entries = await fetchLeaderboard();
   if (!entries.length) {
     leaderboardContent.innerHTML = '<p class="leaderboard-empty">No records yet. Survive a run first.</p>';
     return;
   }
-  const rows = entries.slice(0, 10).map((entry, i) => {
+  const rows = entries.map((entry, i) => {
     const rank = i + 1;
     const score = entry.mode === 'level' ? `Lv ${entry.level} / ${entry.days}d` : `${entry.days} days`;
-    return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.name)}</td><td>${entry.mode === 'level' ? 'LEVEL' : 'SURV'}</td><td>${score}</td></tr>`;
+    return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.player_name || 'Pilot')}</td><td>${entry.mode === 'level' ? 'LEVEL' : 'SURV'}</td><td>${score}</td></tr>`;
   }).join('');
   leaderboardContent.innerHTML = `<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>Mode</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openLeaderboard() {
   if (!state) return;
-  renderLeaderboard();
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
   pauseMenu.classList.add('hidden');
   leaderboardScreen.classList.remove('hidden');
   if (!state.dead) state.paused = true;
+  renderLeaderboard();
 }
 
 function showPublishForm() {
@@ -1077,12 +1111,13 @@ function showPublishForm() {
   publishNameInput.focus();
 }
 
-function confirmPublish() {
+async function confirmPublish() {
   if (!state) return;
   const name = publishNameInput.value.trim() || 'Pilot';
-  addLeaderboardEntry(name, state.runMode, state.days, state.currentLevel);
   publishForm.classList.add('hidden');
-  shareStatus.textContent = 'Score published locally.';
+  shareStatus.textContent = 'Publishing…';
+  const ok = await insertScore(name, state.runMode, state.days, state.currentLevel);
+  shareStatus.textContent = ok ? 'Score published!' : 'Score saved locally (offline).';
 }
 
 function getLevelName(level) {
