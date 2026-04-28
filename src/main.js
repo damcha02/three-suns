@@ -1052,7 +1052,7 @@ function renderLeaderboard() {
     leaderboardContent.innerHTML = '<p class="leaderboard-empty">No records yet. Survive a run first.</p>';
     return;
   }
-  const rows = entries.slice(0, 20).map((entry, i) => {
+  const rows = entries.slice(0, 10).map((entry, i) => {
     const rank = i + 1;
     const score = entry.mode === 'level' ? `Lv ${entry.level} / ${entry.days}d` : `${entry.days} days`;
     return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.name)}</td><td>${entry.mode === 'level' ? 'LEVEL' : 'SURV'}</td><td>${score}</td></tr>`;
@@ -2338,10 +2338,6 @@ document.querySelector('#info-button').addEventListener('click', openInfoScreen)
 document.querySelector('#story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#leaderboard-button').addEventListener('click', openLeaderboard);
 document.querySelector('#leaderboard-close-button').addEventListener('click', closeOverlays);
-document.querySelector('#leaderboard-clear-button').addEventListener('click', () => {
-  localStorage.removeItem(LEADERBOARD_KEY);
-  renderLeaderboard();
-});
 publishButton.addEventListener('click', showPublishForm);
 publishConfirmButton.addEventListener('click', confirmPublish);
 publishNameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); confirmPublish(); } });
