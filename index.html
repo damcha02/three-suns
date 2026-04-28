@@ -22,6 +22,7 @@
               <button id="story-button" type="button" class="hud-link-btn">STORY</button>
               <button id="run-mode-toggle" type="button" class="hud-link-btn" title="Survival: endless run — Level: reach milestones">SURVIVAL</button>
               <button id="leaderboard-button" type="button" class="hud-link-btn">LEADERBOARD</button>
+              <button id="settings-button" type="button" class="hud-link-btn hud-settings-btn" title="Settings / Pause menu" aria-label="Settings">⚙</button>
             </div>
           </div>
           <div class="stats">
@@ -95,7 +96,6 @@
             <button id="pause-story-button" type="button">Story</button>
             <button id="controls-button" type="button">Controls</button>
           </div>
-          <p id="controls-text">Sun contact is always fatal. Auras drain health over time. Click to place anchors. Space / FOCUS slows time. 1 Shield, 2 Sleep, 3 Observe. M mute. P LOW FX.</p>
         </div>
       </section>
       <section id="death-screen" class="hidden">
@@ -141,16 +141,9 @@
           </ul>
           <p class="overlay-footnote">Modes reduce aura danger. They do not stop direct sun contact.</p>
           <div class="overlay-actions">
-            <button id="info-survival-button" type="button" class="btn-primary">Survival Mode</button>
-            <button id="info-level-button" type="button">Level Mode</button>
             <button id="info-resume-button" type="button" class="btn-primary">GOT IT</button>
             <button id="info-tutorial-button" type="button">Replay Tutorial</button>
             <button id="info-story-button" type="button">Story</button>
-            <button id="info-restart-button" type="button">Restart</button>
-            <div class="portal-btn-wrap">
-              <button id="info-next-button" type="button">Next Game</button>
-              <span class="portal-hint">portal to the next vibe jam game</span>
-            </div>
           </div>
         </div>
       </section>
@@ -173,6 +166,28 @@
               <button id="story-next-button" type="button">Next Game</button>
               <span class="portal-hint">portal to the next vibe jam game</span>
             </div>
+          </div>
+        </div>
+      </section>
+      <section id="controls-screen" class="hidden" aria-label="Controls">
+        <div class="overlay-panel">
+          <p class="kicker">keyboard &amp; mouse</p>
+          <h2>CONTROLS</h2>
+          <table class="controls-table">
+            <tbody>
+              <tr><td class="ctrl-key">Click / Tap</td><td>Place gravity anchor</td></tr>
+              <tr><td class="ctrl-key">Space</td><td>Focus — slow time briefly</td></tr>
+              <tr><td class="ctrl-key">1</td><td>Switch to Shield mode (heat resistance)</td></tr>
+              <tr><td class="ctrl-key">2</td><td>Switch to Sleep mode (cold resistance)</td></tr>
+              <tr><td class="ctrl-key">3</td><td>Switch to Observe mode (chaos resistance)</td></tr>
+              <tr><td class="ctrl-key">R</td><td>Restart</td></tr>
+              <tr><td class="ctrl-key">M</td><td>Mute / unmute</td></tr>
+              <tr><td class="ctrl-key">P</td><td>Toggle low FX mode</td></tr>
+              <tr><td class="ctrl-key">Escape</td><td>Pause / resume</td></tr>
+            </tbody>
+          </table>
+          <div class="overlay-actions">
+            <button id="controls-close-button" type="button" class="btn-primary">Close</button>
           </div>
         </div>
       </section>

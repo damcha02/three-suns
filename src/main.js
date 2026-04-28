@@ -62,7 +62,7 @@ const muteButton = document.querySelector('#mute-button');
 const pauseNextButton = document.querySelector('#pause-next-button');
 const pauseCopyButton = document.querySelector('#pause-copy-button');
 const controlsButton = document.querySelector('#controls-button');
-const controlsText = document.querySelector('#controls-text');
+const controlsScreen = document.querySelector('#controls-screen');
 const portalBadge = document.querySelector('#portal-badge');
 const runModeToggle = document.querySelector('#run-mode-toggle');
 const infoScreen = document.querySelector('#info-screen');
@@ -80,8 +80,6 @@ const tutorialGotIt = document.querySelector('#tutorial-got-it');
 const tutorialSkip = document.querySelector('#tutorial-skip');
 const infoTutorialButton = document.querySelector('#info-tutorial-button');
 const infoStoryButton = document.querySelector('#info-story-button');
-const infoSurvivalButton = document.querySelector('#info-survival-button');
-const infoLevelButton = document.querySelector('#info-level-button');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const actionButtons = [...document.querySelectorAll('[data-action]')];
 
@@ -1004,6 +1002,7 @@ function resetGame(runMode = selectedRunMode) {
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
   leaderboardScreen.classList.add('hidden');
+  controlsScreen.classList.add('hidden');
   publishForm.classList.add('hidden');
   shareStatus.textContent = '';
   updateScoreReadout();
@@ -1377,6 +1376,7 @@ function closeOverlays() {
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
   leaderboardScreen.classList.add('hidden');
+  controlsScreen.classList.add('hidden');
   localStorage.setItem('threesuns_seen_info', 'true');
   if (state && !state.dead) state.paused = false;
 }
@@ -2365,7 +2365,12 @@ pauseRestartButton.addEventListener('click', () => resetGame());
 muteButton.addEventListener('click', toggleMute);
 pauseNextButton.addEventListener('click', nextGame);
 pauseCopyButton.addEventListener('click', copyShareText);
-controlsButton.addEventListener('click', () => { controlsText.hidden = !controlsText.hidden; });
+controlsButton.addEventListener('click', () => {
+  pauseMenu.classList.add('hidden');
+  controlsScreen.classList.remove('hidden');
+  if (state && !state.dead) state.paused = true;
+});
+document.querySelector('#controls-close-button').addEventListener('click', closeOverlays);
 portalBadge.addEventListener('click', nextGame);
 runModeToggle.addEventListener('click', () => startRunMode((state?.runMode || selectedRunMode) === 'level' ? 'survival' : 'level'));
 tutorialSkip.addEventListener('click', finishTutorial);
@@ -2380,12 +2385,9 @@ publishNameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') { 
 document.querySelector('#pause-info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#pause-story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#info-resume-button').addEventListener('click', closeOverlays);
-infoSurvivalButton.addEventListener('click', () => startRunMode('survival'));
-infoLevelButton.addEventListener('click', () => startRunMode('level'));
 infoTutorialButton.addEventListener('click', () => { closeOverlays(); startTutorial(true); });
 infoStoryButton.addEventListener('click', openStoryScreen);
-document.querySelector('#info-restart-button').addEventListener('click', () => { closeOverlays(); resetGame(); });
-document.querySelector('#info-next-button').addEventListener('click', nextGame);
+document.querySelector('#settings-button').addEventListener('click', () => togglePause(true));
 document.querySelector('#story-resume-button').addEventListener('click', closeOverlays);
 document.querySelector('#story-restart-button').addEventListener('click', () => { closeOverlays(); resetGame(); });
 document.querySelector('#story-next-button').addEventListener('click', nextGame);
