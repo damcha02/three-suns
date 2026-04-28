@@ -109,7 +109,7 @@ p {
 
 h1 {
   letter-spacing: 0.36em;
-  font-size: clamp(1rem, 3vw, 2.15rem);
+  font-size: clamp(1.3rem, 3.6vw, 2.55rem);
   font-weight: 800;
 }
 
@@ -758,27 +758,28 @@ button:hover {
 /* HUD INFO / STORY link buttons */
 .hud-links {
   display: flex;
-  gap: 0.4rem;
-  margin-top: 0.45rem;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  margin-top: 0.48rem;
   pointer-events: auto;
 }
 
 .hud-link-btn {
-  padding: 0.22rem 0.52rem;
-  min-height: unset;
-  font-size: 0.6rem;
-  letter-spacing: 0.15em;
-  color: rgba(224, 214, 255, 0.38);
+  padding: 0.3rem 0.72rem;
+  min-height: 1.9rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: rgba(224, 214, 255, 0.44);
   background: transparent;
-  border: 1px solid rgba(224, 214, 255, 0.1);
-  border-radius: 0.14rem;
+  border: 1px solid rgba(224, 214, 255, 0.12);
+  border-radius: 0.16rem;
   box-shadow: none;
 }
 
 .hud-link-btn:hover {
-  color: rgba(224, 214, 255, 0.82);
+  color: rgba(224, 214, 255, 0.88);
   background: rgba(179, 119, 255, 0.1);
-  border-color: rgba(224, 214, 255, 0.28);
+  border-color: rgba(224, 214, 255, 0.32);
 }
 
 #run-mode-toggle.active,
@@ -821,9 +822,10 @@ button:hover {
   opacity: 1;
 }
 
-/* INFO / STORY full-screen overlays */
+/* INFO / STORY / LEADERBOARD full-screen overlays */
 #info-screen,
-#story-screen {
+#story-screen,
+#leaderboard-screen {
   position: fixed;
   inset: 0;
   z-index: 7;
@@ -836,7 +838,8 @@ button:hover {
 }
 
 #info-screen.hidden,
-#story-screen.hidden {
+#story-screen.hidden,
+#leaderboard-screen.hidden {
   display: none;
 }
 
@@ -967,6 +970,79 @@ button:hover {
 @keyframes level-banner-out {
   from { opacity: 1; transform: translate(-50%, 0); }
   to { opacity: 0; transform: translate(-50%, -0.8rem); }
+}
+
+/* Leaderboard table */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: clamp(0.76rem, 2vw, 0.88rem);
+  margin: 0 0 1.2rem;
+}
+
+.leaderboard-table th {
+  color: rgba(224, 214, 255, 0.48);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  padding: 0.28rem 0.55rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.leaderboard-table td {
+  padding: 0.38rem 0.55rem;
+  color: rgba(240, 234, 255, 0.78);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.leaderboard-table tr.rank-1 td { color: #ffd36a; }
+.leaderboard-table tr.rank-2 td { color: rgba(255, 255, 255, 0.95); }
+.leaderboard-table tr.rank-3 td { color: #9ee7ff; }
+
+.leaderboard-empty {
+  color: rgba(224, 214, 255, 0.46);
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 1.4rem 0;
+  letter-spacing: 0.06em;
+  margin: 0 0 1.2rem;
+}
+
+/* Publish score form */
+.publish-form {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.7rem;
+}
+
+#publish-form.hidden {
+  display: none;
+}
+
+.publish-form input[type="text"] {
+  padding: 0.56rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: white;
+  font: inherit;
+  letter-spacing: 0.06em;
+  font-size: 0.88rem;
+  min-width: 10rem;
+  text-align: center;
+  outline: none;
+}
+
+.publish-form input[type="text"]:focus {
+  border-color: rgba(179, 119, 255, 0.52);
+  background: rgba(179, 119, 255, 0.08);
+}
+
+.publish-form input[type="text"]::placeholder {
+  color: rgba(255, 255, 255, 0.28);
 }
 
 @media (max-width: 620px) {

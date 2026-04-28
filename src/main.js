@@ -67,6 +67,12 @@ const portalBadge = document.querySelector('#portal-badge');
 const runModeToggle = document.querySelector('#run-mode-toggle');
 const infoScreen = document.querySelector('#info-screen');
 const storyScreen = document.querySelector('#story-screen');
+const leaderboardScreen = document.querySelector('#leaderboard-screen');
+const leaderboardContent = document.querySelector('#leaderboard-content');
+const publishButton = document.querySelector('#publish-button');
+const publishForm = document.querySelector('#publish-form');
+const publishNameInput = document.querySelector('#publish-name-input');
+const publishConfirmButton = document.querySelector('#publish-confirm-button');
 const tutorialBox = document.querySelector('#tutorial-box');
 const tutorialTitle = document.querySelector('#tutorial-title');
 const tutorialText = document.querySelector('#tutorial-text');
@@ -118,6 +124,7 @@ const VOID_DAMAGE_DELAY = 4;
 const TUTORIAL_KEY = 'three-suns-tutorial-complete';
 const RUN_MODE_KEY = 'three-suns-run-mode';
 const LEVEL_HIGH_KEY = 'three-suns-highest-level';
+const LEADERBOARD_KEY = 'three-suns-leaderboard';
 const COMET_WARNING_LEAD = 2;
 const DEBUG_DEATH_CAUSE = false;
 
@@ -989,6 +996,8 @@ function resetGame(runMode = selectedRunMode) {
   pauseMenu.classList.add('hidden');
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
+  leaderboardScreen.classList.add('hidden');
+  publishForm.classList.add('hidden');
   shareStatus.textContent = '';
   updateScoreReadout();
   updateRunModeToggle();
@@ -1012,6 +1021,68 @@ function getHighestLevel() {
 function setHighestLevel(level) {
   if (level > getHighestLevel()) localStorage.setItem(LEVEL_HIGH_KEY, String(level));
   updateScoreReadout();
+}
+
+function getLeaderboard() {
+  try { return JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || '[]'); } catch { return []; }
+}
+
+function addLeaderboardEntry(name, mode, days, level) {
+  const board = getLeaderboard();
+  board.push({ name: (name || 'Pilot').trim().slice(0, 24) || 'Pilot', mode, days, level, timestamp: Date.now() });
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
+}
+
+function getSortedLeaderboard() {
+  return getLeaderboard().sort((a, b) => {
+    const aLvl = a.mode === 'level' ? a.level : 0;
+    const bLvl = b.mode === 'level' ? b.level : 0;
+    if (bLvl !== aLvl) return bLvl - aLvl;
+    return b.days - a.days;
+  });
+}
+
+function escHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderLeaderboard() {
+  const entries = getSortedLeaderboard();
+  if (!entries.length) {
+    leaderboardContent.innerHTML = '<p class="leaderboard-empty">No records yet. Survive a run first.</p>';
+    return;
+  }
+  const rows = entries.slice(0, 20).map((entry, i) => {
+    const rank = i + 1;
+    const score = entry.mode === 'level' ? `Lv ${entry.level} / ${entry.days}d` : `${entry.days} days`;
+    return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.name)}</td><td>${entry.mode === 'level' ? 'LEVEL' : 'SURV'}</td><td>${score}</td></tr>`;
+  }).join('');
+  leaderboardContent.innerHTML = `<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>Mode</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function openLeaderboard() {
+  if (!state) return;
+  renderLeaderboard();
+  infoScreen.classList.add('hidden');
+  storyScreen.classList.add('hidden');
+  pauseMenu.classList.add('hidden');
+  leaderboardScreen.classList.remove('hidden');
+  if (!state.dead) state.paused = true;
+}
+
+function showPublishForm() {
+  if (!state || !state.dead) return;
+  publishForm.classList.remove('hidden');
+  publishNameInput.value = '';
+  publishNameInput.focus();
+}
+
+function confirmPublish() {
+  if (!state) return;
+  const name = publishNameInput.value.trim() || 'Pilot';
+  addLeaderboardEntry(name, state.runMode, state.days, state.currentLevel);
+  publishForm.classList.add('hidden');
+  shareStatus.textContent = 'Score published locally.';
 }
 
 function getLevelName(level) {
@@ -1270,6 +1341,7 @@ function openStoryScreen() {
 function closeOverlays() {
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
+  leaderboardScreen.classList.add('hidden');
   localStorage.setItem('threesuns_seen_info', 'true');
   if (state && !state.dead) state.paused = false;
 }
@@ -2249,11 +2321,11 @@ window.addEventListener('keydown', (event) => {
     triggerFocus();
   }
 });
-restartButton.addEventListener('click', resetGame);
+restartButton.addEventListener('click', () => resetGame());
 nextButton.addEventListener('click', nextGame);
 shareButton.addEventListener('click', copyShareText);
 resumeButton.addEventListener('click', () => togglePause(false));
-pauseRestartButton.addEventListener('click', resetGame);
+pauseRestartButton.addEventListener('click', () => resetGame());
 muteButton.addEventListener('click', toggleMute);
 pauseNextButton.addEventListener('click', nextGame);
 pauseCopyButton.addEventListener('click', copyShareText);
@@ -2264,6 +2336,15 @@ tutorialSkip.addEventListener('click', finishTutorial);
 tutorialGotIt.addEventListener('click', advanceTutorial);
 document.querySelector('#info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#story-button').addEventListener('click', openStoryScreen);
+document.querySelector('#leaderboard-button').addEventListener('click', openLeaderboard);
+document.querySelector('#leaderboard-close-button').addEventListener('click', closeOverlays);
+document.querySelector('#leaderboard-clear-button').addEventListener('click', () => {
+  localStorage.removeItem(LEADERBOARD_KEY);
+  renderLeaderboard();
+});
+publishButton.addEventListener('click', showPublishForm);
+publishConfirmButton.addEventListener('click', confirmPublish);
+publishNameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); confirmPublish(); } });
 document.querySelector('#pause-info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#pause-story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#info-resume-button').addEventListener('click', closeOverlays);

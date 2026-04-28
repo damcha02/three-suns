@@ -7,8 +7,8 @@
     <title>Three Suns: Chaotic Dawn</title>
     <script async src="https://vibej.am/2026/widget.js"></script>
     <script src="https://vibej.am/2026/portal/sample.js"></script>
-    <script type="module" crossorigin src="/assets/index-h-myaLMG.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-J9q5MnYG.css">
+    <script type="module" crossorigin src="/assets/index-Dgp3spGA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DoI0ezOM.css">
   </head>
   <body>
     <main id="game-root">
@@ -23,6 +23,7 @@
               <button id="info-button" type="button" class="hud-link-btn">INFO</button>
               <button id="story-button" type="button" class="hud-link-btn">STORY</button>
               <button id="run-mode-toggle" type="button" class="hud-link-btn" title="Survival: endless run — Level: reach milestones">SURVIVAL</button>
+              <button id="leaderboard-button" type="button" class="hud-link-btn">LEADERBOARD</button>
             </div>
           </div>
           <div class="stats">
@@ -110,10 +111,15 @@
           <div class="death-actions">
             <button id="restart-button" type="button">Play Again</button>
             <button id="share-button" type="button">Copy Score</button>
+            <button id="publish-button" type="button">Publish Score</button>
             <div class="portal-btn-wrap">
               <button id="next-button" type="button">Next Game</button>
               <span class="portal-hint">portal to the next vibe jam game</span>
             </div>
+          </div>
+          <div id="publish-form" class="publish-form hidden">
+            <input id="publish-name-input" type="text" placeholder="Enter name" maxlength="24" autocomplete="off" />
+            <button id="publish-confirm-button" type="button">Save</button>
           </div>
           <p id="share-status" aria-live="polite"></p>
         </div>
@@ -169,6 +175,17 @@
               <button id="story-next-button" type="button">Next Game</button>
               <span class="portal-hint">portal to the next vibe jam game</span>
             </div>
+          </div>
+        </div>
+      </section>
+      <section id="leaderboard-screen" class="hidden" aria-label="Leaderboard">
+        <div class="overlay-panel">
+          <p class="kicker">local leaderboard</p>
+          <h2>LEADERBOARD</h2>
+          <div id="leaderboard-content"></div>
+          <div class="overlay-actions">
+            <button id="leaderboard-close-button" type="button" class="btn-primary">Close</button>
+            <button id="leaderboard-clear-button" type="button">Clear Local Scores</button>
           </div>
         </div>
       </section>
