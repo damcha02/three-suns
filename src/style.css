@@ -1010,6 +1010,40 @@ button:hover {
 }
 
 /* Leaderboard table */
+.lb-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1.1rem;
+}
+
+.lb-tab {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(224, 214, 255, 0.5);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.42rem 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.lb-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(224, 214, 255, 0.8);
+}
+
+.lb-tab.active,
+.lb-tab[aria-selected="true"] {
+  background: rgba(180, 140, 255, 0.18);
+  border-color: rgba(180, 140, 255, 0.45);
+  color: #e0d6ff;
+}
+
 .leaderboard-table {
   width: 100%;
   border-collapse: collapse;

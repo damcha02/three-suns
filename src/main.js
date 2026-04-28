@@ -123,6 +123,10 @@ const TUTORIAL_KEY = 'three-suns-tutorial-complete';
 const RUN_MODE_KEY = 'three-suns-run-mode';
 const LEVEL_HIGH_KEY = 'three-suns-highest-level';
 const LEADERBOARD_KEY = 'three-suns-leaderboard';
+const BORDER_X = 24;
+const BORDER_Y = 15;
+const BORDER_MARGIN = 5;
+const BORDER_FORCE = 3.0;
 const SUPABASE_URL = 'https://eakybrckrrtvmgycgsey.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_bifkfp00l6aTu22tvWXYpg_oVoC1Jjb';
 const SUPABASE_HEADERS = {
@@ -188,6 +192,8 @@ const colors = {
 let state;
 let audio;
 let music = null;
+let deathLoop = null;
+let spaceAmbient = null;
 let muted = localStorage.getItem('threesuns_muted') === 'true';
 let highQuality = true;
 let selectedRunMode = localStorage.getItem(RUN_MODE_KEY) === 'level' ? 'level' : 'survival';
@@ -615,7 +621,10 @@ function playCue(name) {
   if (name === 'anchor') blip(440, 0.11, 'triangle', 0.75);
   else if (name === 'danger') blip(210, 0.16, 'square', 0.42);
   else if (name === 'nearMiss') blip(760, 0.12, 'sine', 0.55);
-  else if (name === 'death') blip(state?.deathCause === 'frozen' ? 90 : 70, 0.55, 'sawtooth', 0.6);
+  else if (name === 'death') {
+    blip(state?.deathCause === 'frozen' ? 148 : 118, 0.44, 'sine', 0.28);
+    window.setTimeout(startDeathLoop, 60);
+  }
   else if (name === 'highScore') {
     blip(520, 0.08, 'triangle', 0.45);
     window.setTimeout(() => blip(780, 0.12, 'sine', 0.42), 90);
@@ -718,8 +727,8 @@ function updateMusic() {
   const isFocus = (state?.focus || 0) > 0;
   const isDead = state?.dead || false;
 
-  const targetVol = muted ? 0 : isDead ? 0.5 : (0.9 + prox * 1.1);
-  music.musicMaster.gain.setTargetAtTime(targetVol, t, isDead ? 3.5 : 0.6);
+  const targetVol = muted ? 0 : isDead ? 0.04 : (0.9 + prox * 1.1);
+  music.musicMaster.gain.setTargetAtTime(targetVol, t, isDead ? 0.8 : 0.6);
 
   const targetFreq = isFocus ? (500 + prox * 300) : (1400 + prox * 1600);
   music.filter.frequency.setTargetAtTime(targetFreq, t, 0.25);
@@ -733,7 +742,13 @@ function updateMusic() {
     music.harm.frequency.setTargetAtTime(harmFreq, t, 2.0);
   }
 
-  music.collapseGain.gain.setTargetAtTime(isDead ? 0.45 : 0, t, isDead ? 2.5 : 0.4);
+  music.collapseGain.gain.setTargetAtTime(0, t, 0.4);
+  if (isDead) {
+    tickDeathLoop();
+  } else {
+    if (!spaceAmbient) startSpaceAmbient();
+    tickSpaceAmbient();
+  }
 
   if (!isDead && prox > 0.6 && state) {
     const interval = 0.55 - prox * 0.28;
@@ -747,6 +762,316 @@ function updateMusic() {
   } else if (prox <= 0.6) {
     music.heartGain.gain.setTargetAtTime(0, t, 0.15);
   }
+}
+
+// Am7 arpeggio: A3 C4 E4 G4 E4 C4 — gentle minor-7th loop
+const DEATH_ARPEGGIO = [220, 261.63, 329.63, 392, 329.63, 261.63];
+const DEATH_BEAT_S = 0.62;
+
+function createDeathLoop() {
+  if (deathLoop || !audio) return;
+  const ctx = audio.ctx;
+
+  const master = ctx.createGain();
+  master.gain.value = 0;
+
+  // Try stereo panner for subtle drift; fall back gracefully
+  try {
+    const panner = ctx.createStereoPanner();
+    master.connect(panner);
+    panner.connect(audio.master);
+    deathLoop = { master, panner };
+  } catch {
+    master.connect(audio.master);
+    deathLoop = { master, panner: null };
+  }
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1100;
+  filter.Q.value = 0.5;
+  filter.connect(master);
+
+  // Warm delay reverb tail
+  const delay = ctx.createDelay(0.8);
+  delay.delayTime.value = 0.33;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.25;
+  delay.connect(fb);
+  fb.connect(delay);
+  const delayOut = ctx.createGain();
+  delayOut.gain.value = 0.18;
+  delay.connect(delayOut);
+  delayOut.connect(master);
+
+  Object.assign(deathLoop, { filter, delay, fb, delayOut, nextNoteAt: 0, noteIndex: 0 });
+}
+
+function scheduleDeathNote(startTime) {
+  if (!audio || !deathLoop) return;
+  const ctx = audio.ctx;
+  const idx = deathLoop.noteIndex % DEATH_ARPEGGIO.length;
+  const freq = DEATH_ARPEGGIO[idx];
+  const isRoot = idx === 0;
+
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, startTime);
+  env.gain.linearRampToValueAtTime(isRoot ? 0.52 : 0.36, startTime + 0.038);
+  env.gain.exponentialRampToValueAtTime(0.001, startTime + 0.52);
+  osc.connect(env);
+  env.connect(deathLoop.filter);
+  env.connect(deathLoop.delay);
+  osc.start(startTime);
+  osc.stop(startTime + 0.55);
+
+  // Warm sub-octave bass on root note
+  if (isRoot) {
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = freq / 2;
+    const subEnv = ctx.createGain();
+    subEnv.gain.setValueAtTime(0, startTime);
+    subEnv.gain.linearRampToValueAtTime(0.20, startTime + 0.06);
+    subEnv.gain.exponentialRampToValueAtTime(0.001, startTime + 0.72);
+    sub.connect(subEnv);
+    subEnv.connect(deathLoop.filter);
+    sub.start(startTime);
+    sub.stop(startTime + 0.75);
+
+    // Soft click percussion — filtered noise burst
+    try {
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.018), ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      const click = ctx.createBufferSource();
+      click.buffer = buf;
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass';
+      cf.frequency.value = 820;
+      cf.Q.value = 0.9;
+      const cg = ctx.createGain();
+      cg.gain.value = 0.07;
+      click.connect(cf);
+      cf.connect(cg);
+      cg.connect(deathLoop.master);
+      click.start(startTime);
+    } catch {}
+  }
+
+  deathLoop.noteIndex += 1;
+}
+
+function tickDeathLoop() {
+  if (!deathLoop || !audio) return;
+  const ctx = audio.ctx;
+  const t = ctx.currentTime;
+  if (deathLoop.nextNoteAt < t) deathLoop.nextNoteAt = t;
+  while (deathLoop.nextNoteAt < t + 0.12) {
+    scheduleDeathNote(deathLoop.nextNoteAt);
+    deathLoop.nextNoteAt += DEATH_BEAT_S;
+  }
+  if (deathLoop.panner) {
+    deathLoop.panner.pan.setTargetAtTime(Math.sin(t * 0.21) * 0.28, t, 0.9);
+  }
+}
+
+function startDeathLoop() {
+  createAudio();
+  if (!audio) return;
+  stopSpaceAmbient();
+  createDeathLoop();
+  if (!deathLoop) return;
+  const t = audio.ctx.currentTime;
+  deathLoop.nextNoteAt = t + 0.15;
+  deathLoop.noteIndex = 0;
+  deathLoop.master.gain.cancelScheduledValues(t);
+  deathLoop.master.gain.setValueAtTime(deathLoop.master.gain.value, t);
+  deathLoop.master.gain.linearRampToValueAtTime(muted ? 0 : 0.55, t + 0.5);
+}
+
+function stopDeathLoop() {
+  if (!deathLoop || !audio) return;
+  const t = audio.ctx.currentTime;
+  deathLoop.master.gain.cancelScheduledValues(t);
+  deathLoop.master.gain.setValueAtTime(deathLoop.master.gain.value, t);
+  deathLoop.master.gain.linearRampToValueAtTime(0, t + 0.3);
+}
+
+// Sparse single notes — vast, empty, universe feel
+// Chill lofi beat — 75 BPM, Am-F-C-G, 4-bar loop
+const LOFI_BEAT  = 60 / 75;          // 0.8 s per quarter note
+const LOFI_16TH  = LOFI_BEAT / 4;    // 0.2 s per 16th note
+const LOFI_BAR   = LOFI_BEAT * 4;    // 3.2 s per bar
+const LOFI_SWING = LOFI_16TH * 0.13; // 8th-note swing offset
+
+// Bass roots + fifths per bar (Am-F-C-G)
+const LOFI_BASS = [
+  [110, 82.41],    // Am: A2, E2
+  [87.31, 130.81], // F:  F2, C3
+  [130.81, 98],    // C:  C3, G2
+  [98, 146.83],    // G:  G2, D3
+];
+
+// Chord voicings every 2 bars (very soft stab)
+const LOFI_CHORDS = [
+  [220, 261.63, 329.63, 392],     // Am7
+  [261.63, 329.63, 392, 493.88],  // Cmaj7
+];
+
+function createSpaceAmbient() {
+  if (spaceAmbient || !audio) return;
+  const ctx = audio.ctx;
+
+  const master = ctx.createGain();
+  master.gain.value = 0;
+
+  // Warm analog lowpass on the whole beat
+  const warmth = ctx.createBiquadFilter();
+  warmth.type = 'lowpass';
+  warmth.frequency.value = 9000;
+  warmth.Q.value = 0.4;
+  warmth.connect(master);
+  master.connect(audio.master);
+
+  // Short room reverb
+  const delay = ctx.createDelay(0.6);
+  delay.delayTime.value = 0.22;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.22;
+  delay.connect(fb);
+  fb.connect(delay);
+  const delayOut = ctx.createGain();
+  delayOut.gain.value = 0.14;
+  delay.connect(delayOut);
+  delayOut.connect(warmth);
+
+  spaceAmbient = { master, warmth, delay, fb, delayOut, nextBarAt: 0, barIndex: 0 };
+}
+
+function scheduleLofiBar(barStart, barIdx) {
+  if (!audio || !spaceAmbient) return;
+  const ctx = audio.ctx;
+  const out = spaceAmbient.warmth;
+  const rev = spaceAmbient.delay;
+
+  // --- Kick (beat 1 & 3) ---
+  [0, 8].forEach((step) => {
+    const t = barStart + step * LOFI_16TH + (Math.random() - 0.5) * 0.006;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(145, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.13);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.72, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(g); g.connect(out);
+    o.start(t); o.stop(t + 0.22);
+  });
+
+  // --- Snare (beat 2 & 4) ---
+  [4, 12].forEach((step) => {
+    const t = barStart + step * LOFI_16TH + (Math.random() - 0.5) * 0.008;
+    // noise body
+    const blen = Math.floor(ctx.sampleRate * 0.09);
+    const buf = ctx.createBuffer(1, blen, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < blen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / blen);
+    const ns = ctx.createBufferSource(); ns.buffer = buf;
+    const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 2000; nf.Q.value = 0.7;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.26, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start(t);
+    // tonal crack
+    const to = ctx.createOscillator(); to.type = 'triangle';
+    to.frequency.setValueAtTime(195, t); to.frequency.exponentialRampToValueAtTime(95, t + 0.07);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.14, t); tg.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    to.connect(tg); tg.connect(out); to.start(t); to.stop(t + 0.11);
+  });
+
+  // --- Hi-hat (8th notes, swung, occasional miss) ---
+  for (let step = 0; step < 16; step += 2) {
+    if (Math.random() < 0.11) continue;
+    const swing = step % 4 === 2 ? LOFI_SWING : 0;
+    const t = barStart + step * LOFI_16TH + swing + (Math.random() - 0.5) * 0.005;
+    const vel = 0.055 + Math.random() * 0.055;
+    const blen = Math.floor(ctx.sampleRate * 0.035);
+    const buf = ctx.createBuffer(1, blen, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < blen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / blen);
+    const ns = ctx.createBufferSource(); ns.buffer = buf;
+    const nf = ctx.createBiquadFilter(); nf.type = 'highpass'; nf.frequency.value = 7500;
+    const ng = ctx.createGain(); ng.gain.value = vel;
+    ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start(t);
+  }
+
+  // --- Bass (root on beat 1, fifth on beat 3) ---
+  const [b1, b3] = LOFI_BASS[barIdx % 4];
+  [[0, b1], [8, b3]].forEach(([step, freq]) => {
+    const t = barStart + step * LOFI_16TH + (Math.random() - 0.5) * 0.006;
+    const o = ctx.createOscillator(); o.type = 'triangle';
+    o.frequency.value = freq;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480; lp.Q.value = 0.4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.48, t + 0.025);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+    o.connect(lp); lp.connect(g); g.connect(out); g.connect(rev);
+    o.start(t); o.stop(t + 0.55);
+  });
+
+  // --- Chord stab (beat 1, every 2 bars, very soft) ---
+  if (barIdx % 2 === 0) {
+    const chord = LOFI_CHORDS[(barIdx / 2) % 2];
+    chord.forEach((freq, i) => {
+      const t = barStart + i * 0.016;
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.value = freq * (1 + (Math.random() - 0.5) * 0.003);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(Math.max(0.01, 0.065 - i * 0.01), t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+      o.connect(lp); lp.connect(g); g.connect(out); g.connect(rev);
+      o.start(t); o.stop(t + 1.2);
+    });
+  }
+}
+
+function tickSpaceAmbient() {
+  if (!spaceAmbient || !audio) return;
+  const t = audio.ctx.currentTime;
+  if (spaceAmbient.nextBarAt < t) spaceAmbient.nextBarAt = t;
+  while (spaceAmbient.nextBarAt < t + 0.25) {
+    scheduleLofiBar(spaceAmbient.nextBarAt, spaceAmbient.barIndex);
+    spaceAmbient.nextBarAt += LOFI_BAR;
+    spaceAmbient.barIndex = (spaceAmbient.barIndex + 1) % 8;
+  }
+}
+
+function startSpaceAmbient() {
+  createAudio();
+  if (!audio) return;
+  createSpaceAmbient();
+  if (!spaceAmbient) return;
+  const t = audio.ctx.currentTime;
+  spaceAmbient.nextBarAt = t + 0.3;
+  spaceAmbient.barIndex = 0;
+  spaceAmbient.master.gain.cancelScheduledValues(t);
+  spaceAmbient.master.gain.setValueAtTime(spaceAmbient.master.gain.value, t);
+  spaceAmbient.master.gain.linearRampToValueAtTime(muted ? 0 : 0.36, t + 0.8);
+}
+
+function stopSpaceAmbient() {
+  if (!spaceAmbient || !audio) return;
+  const t = audio.ctx.currentTime;
+  spaceAmbient.master.gain.cancelScheduledValues(t);
+  spaceAmbient.master.gain.setValueAtTime(spaceAmbient.master.gain.value, t);
+  spaceAmbient.master.gain.linearRampToValueAtTime(0, t + 0.5);
 }
 
 function initPortals() {
@@ -1004,6 +1329,8 @@ function resetGame(runMode = selectedRunMode) {
   leaderboardScreen.classList.add('hidden');
   controlsScreen.classList.add('hidden');
   publishForm.classList.add('hidden');
+  stopDeathLoop();
+  startSpaceAmbient();
   shareStatus.textContent = '';
   updateScoreReadout();
   updateRunModeToggle();
@@ -1046,16 +1373,19 @@ function saveLocalEntry(name, mode, days, level) {
   localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board.slice(0, 20)));
 }
 
-async function fetchLeaderboard() {
+async function fetchLeaderboard(mode) {
+  const modeFilter = mode === 'level'
+    ? `&mode=eq.level&order=level.desc,days.desc`
+    : `&mode=eq.survival&order=days.desc`;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/scores?select=*&order=level.desc,days.desc&limit=10`,
+      `${SUPABASE_URL}/rest/v1/scores?select=*${modeFilter}&limit=10`,
       { headers: SUPABASE_HEADERS }
     );
     if (!res.ok) throw new Error('fetch failed');
     return await res.json();
   } catch {
-    return getLocalLeaderboard().slice(0, 10);
+    return getLocalLeaderboard().filter(e => e.mode === mode).slice(0, 10);
   }
 }
 
@@ -1078,19 +1408,33 @@ function escHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-async function renderLeaderboard() {
+let activeLeaderboardTab = 'survival';
+
+function setLeaderboardTab(mode) {
+  activeLeaderboardTab = mode;
+  const tabSurvival = document.querySelector('#lb-tab-survival');
+  const tabLevel = document.querySelector('#lb-tab-level');
+  tabSurvival.classList.toggle('active', mode === 'survival');
+  tabSurvival.setAttribute('aria-selected', String(mode === 'survival'));
+  tabLevel.classList.toggle('active', mode === 'level');
+  tabLevel.setAttribute('aria-selected', String(mode === 'level'));
+  renderLeaderboard(mode);
+}
+
+async function renderLeaderboard(mode) {
   leaderboardContent.innerHTML = '<p class="leaderboard-empty">Loading…</p>';
-  const entries = await fetchLeaderboard();
+  const entries = await fetchLeaderboard(mode);
   if (!entries.length) {
     leaderboardContent.innerHTML = '<p class="leaderboard-empty">No records yet. Survive a run first.</p>';
     return;
   }
   const rows = entries.map((entry, i) => {
     const rank = i + 1;
-    const score = entry.mode === 'level' ? `Lv ${entry.level} / ${entry.days}d` : `${entry.days} days`;
-    return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.player_name || 'Pilot')}</td><td>${entry.mode === 'level' ? 'LEVEL' : 'SURV'}</td><td>${score}</td></tr>`;
+    const score = mode === 'level' ? `Lv ${entry.level} / ${entry.days}d` : `${entry.days} days`;
+    return `<tr class="${rank <= 3 ? `rank-${rank}` : ''}"><td>${rank}</td><td>${escHtml(entry.player_name || 'Pilot')}</td><td>${score}</td></tr>`;
   }).join('');
-  leaderboardContent.innerHTML = `<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>Mode</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const scoreHeader = mode === 'level' ? 'Score' : 'Days';
+  leaderboardContent.innerHTML = `<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>${scoreHeader}</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openLeaderboard() {
@@ -1100,7 +1444,7 @@ function openLeaderboard() {
   pauseMenu.classList.add('hidden');
   leaderboardScreen.classList.remove('hidden');
   if (!state.dead) state.paused = true;
-  renderLeaderboard();
+  setLeaderboardTab(state.runMode === 'level' ? 'level' : 'survival');
 }
 
 function showPublishForm() {
@@ -1386,9 +1730,11 @@ function toggleMute() {
   if (state) state.muted = muted;
   localStorage.setItem('threesuns_muted', String(muted));
   muteButton.textContent = muted ? 'Unmute' : 'Mute';
-  if (music && audio) {
+  if (audio) {
     const t = audio.ctx.currentTime;
-    music.musicMaster.gain.setTargetAtTime(muted ? 0 : 0.9, t, 0.3);
+    if (music) music.musicMaster.gain.setTargetAtTime(muted ? 0 : 0.9, t, 0.3);
+    if (deathLoop) deathLoop.master.gain.setTargetAtTime(muted ? 0 : 0.55, t, 0.3);
+    if (spaceAmbient) spaceAmbient.master.gain.setTargetAtTime(muted ? 0 : 0.36, t, 0.3);
   }
 }
 
@@ -1921,6 +2267,10 @@ function physicsStep(dt) {
 
   const centerPull = pos.clone().multiplyScalar(-0.006 - Math.max(0, pos.length() - 20) * 0.0015);
   accel.add(centerPull);
+  const bx = BORDER_X - Math.abs(pos.x);
+  const by = BORDER_Y - Math.abs(pos.y);
+  if (bx < BORDER_MARGIN) accel.x -= Math.sign(pos.x) * THREE.MathUtils.smoothstep(BORDER_MARGIN - bx, 0, BORDER_MARGIN) * BORDER_FORCE;
+  if (by < BORDER_MARGIN) accel.y -= Math.sign(pos.y) * THREE.MathUtils.smoothstep(BORDER_MARGIN - by, 0, BORDER_MARGIN) * BORDER_FORCE;
   if (accel.length() > 8.0) accel.setLength(8.0);
   vel.addScaledVector(accel, dt);
   const maxSpeed = Math.min(18.5, 10.6 + state.difficulty * 2.6);
@@ -2379,6 +2729,8 @@ document.querySelector('#info-button').addEventListener('click', openInfoScreen)
 document.querySelector('#story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#leaderboard-button').addEventListener('click', openLeaderboard);
 document.querySelector('#leaderboard-close-button').addEventListener('click', closeOverlays);
+document.querySelector('#lb-tab-survival').addEventListener('click', () => setLeaderboardTab('survival'));
+document.querySelector('#lb-tab-level').addEventListener('click', () => setLeaderboardTab('level'));
 publishButton.addEventListener('click', showPublishForm);
 publishConfirmButton.addEventListener('click', confirmPublish);
 publishNameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') { e.preventDefault(); confirmPublish(); } });
