@@ -646,7 +646,7 @@ function createMusic() {
   filter.connect(musicMaster);
 
   const droneGain = ctx.createGain();
-  droneGain.gain.value = 0.65;
+  droneGain.gain.value = 0;
   droneGain.connect(filter);
 
   const drone1 = ctx.createOscillator();
