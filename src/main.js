@@ -20,8 +20,11 @@ window.THREE = {
 };
 
 const canvas = document.querySelector('#game-canvas');
+const dangerVignette = document.querySelector('#danger-vignette');
 const daysEl = document.querySelector('#days');
-const stabilityEl = document.querySelector('#stability');
+const healthEl = document.querySelector('#health');
+const healthFill = document.querySelector('#health-fill');
+const healthBar = document.querySelector('.health-bar');
 const highScoreEl = document.querySelector('#high-score');
 const warningsEl = document.querySelector('#warnings');
 const heatMeter = document.querySelector('#heat-meter');
@@ -54,6 +57,13 @@ const controlsText = document.querySelector('#controls-text');
 const portalBadge = document.querySelector('#portal-badge');
 const infoScreen = document.querySelector('#info-screen');
 const storyScreen = document.querySelector('#story-screen');
+const tutorialBox = document.querySelector('#tutorial-box');
+const tutorialTitle = document.querySelector('#tutorial-title');
+const tutorialText = document.querySelector('#tutorial-text');
+const tutorialGotIt = document.querySelector('#tutorial-got-it');
+const tutorialSkip = document.querySelector('#tutorial-skip');
+const infoTutorialButton = document.querySelector('#info-tutorial-button');
+const infoStoryButton = document.querySelector('#info-story-button');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const actionButtons = [...document.querySelectorAll('[data-action]')];
 
@@ -65,7 +75,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x02030a, 0.018);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 220);
-camera.position.set(0, 0, 46);
+camera.position.set(0, 0, 56);
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -75,7 +85,7 @@ const clock = new THREE.Clock();
 
 const DAY_SECONDS = 1.5;
 const MAX_DT = 0.033;
-const ANCHOR_LIFE = 2.5;
+const ANCHOR_LIFE = 2.8;
 const MAX_ANCHORS = 3;
 const FOCUS_TIME = 1.15;
 const FOCUS_COOLDOWN = 8;
@@ -83,6 +93,17 @@ const START_GRACE = 3;
 const MAX_SIGNAL = 100;
 const ANCHOR_SIGNAL_COST = 28;
 const PLANET_RADIUS = 0.6;
+const PLANET_DAMPING = 0.999;
+const SUN_DAMPING = 0.9994;
+const GLOBAL_GRAVITY_SCALE = 0.9;
+const SUN_SPEED_SCALE = 1.28;
+const GAMMA_GRAVITY_MULTIPLIER = 2.65;
+const SUN_COLLISION_PADDING = 1.15;
+const SUPERNOVA_GRACE = 1.5;
+const OUTER_SAFE_RADIUS = 30;
+const VOID_SUNLIGHT_RADIUS = 23;
+const VOID_DAMAGE_DELAY = 4;
+const TUTORIAL_KEY = 'three-suns-tutorial-complete';
 const DEBUG_DEATH_CAUSE = false;
 
 const portalParams = new URLSearchParams(window.location.search);
@@ -131,8 +152,21 @@ const colors = {
 
 let state;
 let audio;
-let muted = false;
+let music = null;
+let muted = localStorage.getItem('threesuns_muted') === 'true';
 let highQuality = true;
+
+const tutorial = { active: false, index: 0, timer: 0 };
+const tutorialSteps = [
+  { title: 'THIS IS YOUR WORLD', text: 'Keep it alive.', highlight: 'planet', duration: 3 },
+  { title: 'READ THE SUNS', text: 'Touching a sun kills instantly. Auras damage health.', highlight: 'sun', duration: 4 },
+  { title: 'PLACE AN ANCHOR', text: 'Click or tap anywhere to place a gravity anchor.', highlight: 'planet', waitFor: 'anchor' },
+  { title: 'ANCHORS COST SIGNAL', text: 'Signal limits anchor spam and refills while you fly well.', highlight: 'signal', duration: 3.2 },
+  { title: 'SWITCH SURVIVAL MODES', text: 'Use Shield for solar heat, Sleep for deep cold, Observe for clearer omens and cheaper anchors.', highlight: 'modes', waitFor: 'mode' },
+  { title: 'FOCUS SLOWS TIME', text: 'Press Space or tap FOCUS to bend a dangerous moment.', highlight: 'focus', waitFor: 'focus' },
+  { title: 'DO NOT CAMP THE VOID', text: 'Stay close enough for warmth, far enough to survive. The outer dark will freeze you if you camp outside.', highlight: 'sun', duration: 4.2 },
+  { title: 'SURVIVE THE DAWN', text: 'Survive as many days as possible.', highlight: 'planet', duration: 3.2 },
+];
 
 function makeCircleTexture(color, soft = true) {
   const size = 128;
@@ -252,8 +286,8 @@ function makeSun(def) {
     new THREE.SphereGeometry(size, 32, 24),
     new THREE.MeshBasicMaterial({ color })
   );
-  const glow = makeSprite(color, size * 5, 0.35);
-  const light = new THREE.PointLight(color, 2.3, 60, 1.45);
+  const glow = makeSprite(color, size * 5.8, 0.43);
+  const light = new THREE.PointLight(color, 2.55, 68, 1.45);
   group.add(glow, core, light);
 
   const rings = [];
@@ -266,27 +300,29 @@ function makeSun(def) {
   }
 
   const visualRadius = size;
-  const killRadius = visualRadius + Math.max(PLANET_RADIUS * 0.75, 1.0);
-  const dangerRadius = killRadius * 1.65;
+  const killRadius = visualRadius + PLANET_RADIUS * 0.72;
+  const dangerRadius = visualRadius * 2.35;
+  const auraRadius = visualRadius * 4.0 + PLANET_RADIUS;
 
   const killRing = new THREE.Mesh(
     new THREE.RingGeometry(killRadius - 0.06, killRadius, 72),
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
   );
   const dangerRing = new THREE.Mesh(
-    new THREE.RingGeometry(dangerRadius - 0.06, dangerRadius, 72),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
+    new THREE.RingGeometry(auraRadius - 0.06, auraRadius, 72),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
   );
   group.add(killRing, dangerRing);
 
   scene.add(group);
   return {
     id, name, color,
-    size, visualRadius, killRadius, dangerRadius,
+    size, visualRadius, killRadius, dangerRadius, auraRadius,
     phase, heat, pull,
     deathCause, dangerType,
     group, core, glow, rings, killRing, dangerRing,
     pos: new THREE.Vector3(),
+    vel: new THREE.Vector3(),
     worldPos: new THREE.Vector3(),
     lastDistance: Infinity,
   };
@@ -369,9 +405,9 @@ const ambient = new THREE.AmbientLight(0x6e75aa, 0.34);
 scene.add(ambient);
 
 const SUN_DEFS = [
-  { id: 'alpha', name: 'red', color: colors.red, size: 1.55, phase: 0.2, heat: 1.22, pull: 13.2, deathCause: 'burned', dangerType: 'heat' },
-  { id: 'beta', name: 'blue', color: colors.blue, size: 1.25, phase: 2.5, heat: 0.72, pull: 10.8, deathCause: 'frozen', dangerType: 'cold' },
-  { id: 'gamma', name: 'gold', color: colors.gold, size: 1.42, phase: 4.1, heat: 1.0, pull: 12.2, deathCause: 'scattered', dangerType: 'chaos' },
+  { id: 'alpha', name: 'red', color: colors.red, size: 1.95, phase: 0.2, heat: 1.22, pull: 13.2, deathCause: 'burned', dangerType: 'heat' },
+  { id: 'beta', name: 'blue', color: colors.blue, size: 1.55, phase: 2.5, heat: 0.72, pull: 10.8, deathCause: 'frozen', dangerType: 'cold' },
+  { id: 'gamma', name: 'gold', color: colors.gold, size: 1.78, phase: 4.1, heat: 1.0, pull: 13.8, deathCause: 'scattered', dangerType: 'chaos' },
 ];
 const suns = SUN_DEFS.map(makeSun);
 
@@ -450,7 +486,15 @@ portalGuide.add(portalGuideRing, portalGuideLabel, makeSprite(0x59ffbf, 1.45, 0.
 scene.add(portalGuide);
 
 const nearMissEffects = [];
+const supernovaEffects = [];
 const focusRings = [];
+const tutorialRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.9, 1.02, 96),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
+);
+tutorialRing.rotation.x = Math.PI / 2;
+tutorialRing.visible = false;
+feedbackGroup.add(tutorialRing);
 for (let i = 0; i < 3; i += 1) {
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.62, 0.65, 96),
@@ -535,6 +579,133 @@ function playCue(name) {
   }
 }
 
+function createMusic() {
+  if (music || !audio) return;
+  const ctx = audio.ctx;
+
+  const musicMaster = ctx.createGain();
+  musicMaster.gain.value = 0;
+  musicMaster.connect(audio.master);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1800;
+  filter.Q.value = 0.7;
+  filter.connect(musicMaster);
+
+  const droneGain = ctx.createGain();
+  droneGain.gain.value = 0.65;
+  droneGain.connect(filter);
+
+  const drone1 = ctx.createOscillator();
+  drone1.type = 'sine';
+  drone1.frequency.value = 55;
+  drone1.start();
+  drone1.connect(droneGain);
+
+  const drone2 = ctx.createOscillator();
+  drone2.type = 'triangle';
+  drone2.frequency.value = 82;
+  drone2.start();
+  drone2.connect(droneGain);
+
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 0.07;
+  lfo.start();
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 2.5;
+  lfo.connect(lfoGain);
+  lfoGain.connect(drone1.frequency);
+  lfoGain.connect(drone2.frequency);
+
+  const harmGain = ctx.createGain();
+  harmGain.gain.value = 0;
+  harmGain.connect(filter);
+
+  const harm = ctx.createOscillator();
+  harm.type = 'sine';
+  harm.frequency.value = 220;
+  harm.start();
+  harm.connect(harmGain);
+
+  // Delay reverb tail
+  const delayNode = ctx.createDelay(0.5);
+  delayNode.delayTime.value = 0.26;
+  const delayFeedback = ctx.createGain();
+  delayFeedback.gain.value = 0.34;
+  droneGain.connect(delayNode);
+  delayNode.connect(delayFeedback);
+  delayFeedback.connect(delayNode);
+  const delayOut = ctx.createGain();
+  delayOut.gain.value = 0.18;
+  delayNode.connect(delayOut);
+  delayOut.connect(musicMaster);
+
+  const collapseGain = ctx.createGain();
+  collapseGain.gain.value = 0;
+  collapseGain.connect(musicMaster);
+  const collapseOsc = ctx.createOscillator();
+  collapseOsc.type = 'sawtooth';
+  collapseOsc.frequency.value = 38;
+  collapseOsc.start();
+  collapseOsc.connect(collapseGain);
+
+  const heartGain = ctx.createGain();
+  heartGain.gain.value = 0;
+  heartGain.connect(musicMaster);
+  const heartOsc = ctx.createOscillator();
+  heartOsc.type = 'sine';
+  heartOsc.frequency.value = 62;
+  heartOsc.start();
+  heartOsc.connect(heartGain);
+
+  music = { musicMaster, filter, droneGain, drone1, drone2, lfo, lfoGain, harmGain, harm, delayOut, collapseGain, collapseOsc, heartGain, heartOsc, lastHeartbeat: 0 };
+  if (!muted) musicMaster.gain.setTargetAtTime(0.9, ctx.currentTime + 0.1, 1.8);
+}
+
+function updateMusic() {
+  if (!audio) return;
+  if (!music) { createMusic(); return; }
+  const ctx = audio.ctx;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const t = ctx.currentTime;
+  const threat = state?.lastThreat || { proximityIntensity: 0, safe: true };
+  const prox = THREE.MathUtils.clamp(threat.proximityIntensity || 0, 0, 1);
+  const isFocus = (state?.focus || 0) > 0;
+  const isDead = state?.dead || false;
+
+  const targetVol = muted ? 0 : isDead ? 0.5 : (0.9 + prox * 1.1);
+  music.musicMaster.gain.setTargetAtTime(targetVol, t, isDead ? 3.5 : 0.6);
+
+  const targetFreq = isFocus ? (500 + prox * 300) : (1400 + prox * 1600);
+  music.filter.frequency.setTargetAtTime(targetFreq, t, 0.25);
+
+  music.lfo.frequency.setTargetAtTime(0.05 + prox * 0.28, t, 0.8);
+  music.lfoGain.gain.setTargetAtTime(2 + prox * 9, t, 0.5);
+  music.harmGain.gain.setTargetAtTime(isFocus ? 0.08 : prox * 0.55, t, 0.7);
+
+  if (state) {
+    const harmFreq = (isFocus ? 165 : 220) + Math.sin(state.time * 0.09) * 12;
+    music.harm.frequency.setTargetAtTime(harmFreq, t, 2.0);
+  }
+
+  music.collapseGain.gain.setTargetAtTime(isDead ? 0.45 : 0, t, isDead ? 2.5 : 0.4);
+
+  if (!isDead && prox > 0.6 && state) {
+    const interval = 0.55 - prox * 0.28;
+    if (state.time - music.lastHeartbeat > interval) {
+      music.lastHeartbeat = state.time;
+      music.heartGain.gain.cancelScheduledValues(t);
+      music.heartGain.gain.setValueAtTime(0, t);
+      music.heartGain.gain.linearRampToValueAtTime(0.55 * prox, t + 0.025);
+      music.heartGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    }
+  } else if (prox <= 0.6) {
+    music.heartGain.gain.setTargetAtTime(0, t, 0.15);
+  }
+}
+
 function initPortals() {
   planet.userData.portalContinuity = portalContinuity;
   if (!window.initVibeJamPortals) return;
@@ -572,7 +743,7 @@ function buildPortalUrl() {
   params.set('portal', 'true');
   params.set('ref', `${window.location.origin}${window.location.pathname}`);
   params.set('speed', String(window.currentSpeed || 1));
-  params.set('hp', String(Math.ceil(state?.stability ?? 100)));
+  params.set('hp', String(Math.ceil(state?.health ?? 100)));
   params.set('speed_x', String(Number(state?.planetVel?.x || 0).toFixed(2)));
   params.set('speed_y', String(Number(state?.planetVel?.y || 0).toFixed(2)));
   params.set('speed_z', '0');
@@ -591,6 +762,112 @@ function portalNumber(key, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function randomUnitVector() {
+  const angle = Math.random() * Math.PI * 2;
+  return new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+}
+
+function sunGravityWeight(sun) {
+  return sun.pull * GLOBAL_GRAVITY_SCALE * (sun.id === 'gamma' ? GAMMA_GRAVITY_MULTIPLIER : 1);
+}
+
+function placeSunsSafely(avoidPos = null, sunsToPlace = suns) {
+  const resetSet = new Set(sunsToPlace);
+  const placed = suns
+    .filter((sun) => !resetSet.has(sun))
+    .map((sun) => ({ sun, pos: sun.pos.clone() }));
+  for (let i = 0; i < sunsToPlace.length; i += 1) {
+    const sun = sunsToPlace[i];
+    let pos = null;
+    for (let attempt = 0; attempt < 140; attempt += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = randomBetween(sun.id === 'gamma' ? 6.0 : 7.8, 17.0);
+      const candidate = new THREE.Vector3(
+        Math.cos(angle) * radius + randomBetween(-3.2, 3.2),
+        Math.sin(angle) * radius * 0.76 + randomBetween(-2.2, 2.2),
+        0
+      );
+      const clear = placed.every((other) => candidate.distanceTo(other.pos) > Math.max(sun.killRadius + other.sun.killRadius + 5.2, (sun.auraRadius + other.sun.auraRadius) * 0.72));
+      const playerSafe = !avoidPos || candidate.distanceTo(avoidPos) > Math.max(sun.auraRadius + 3.2, sun.killRadius + 6.0);
+      if (clear && playerSafe) {
+        pos = candidate;
+        break;
+      }
+    }
+    if (!pos) {
+      const baseAngle = avoidPos && avoidPos.lengthSq() > 0.001 ? Math.atan2(-avoidPos.y, -avoidPos.x) : Math.random() * Math.PI * 2;
+      for (let attempt = 0; attempt < 18; attempt += 1) {
+        const angle = baseAngle + (attempt / 18) * Math.PI * 2 + i * 1.65;
+        const candidate = new THREE.Vector3(Math.cos(angle) * 16.5, Math.sin(angle) * 12.25, 0);
+        const clear = placed.every((other) => candidate.distanceTo(other.pos) > Math.max(sun.killRadius + other.sun.killRadius + 5.2, (sun.auraRadius + other.sun.auraRadius) * 0.72));
+        const playerSafe = !avoidPos || candidate.distanceTo(avoidPos) > Math.max(sun.auraRadius + 3.2, sun.killRadius + 6.0);
+        if (clear && playerSafe) {
+          pos = candidate;
+          break;
+        }
+      }
+    }
+    if (!pos) pos = randomUnitVector().multiplyScalar(randomBetween(14.4, 17.3));
+    const tangent = new THREE.Vector3(-pos.y, pos.x, 0).normalize().multiplyScalar(randomBetween(0.16, 0.46) * SUN_SPEED_SCALE);
+    const drift = randomUnitVector().multiplyScalar(randomBetween(0.02, 0.16) * SUN_SPEED_SCALE);
+    sun.pos.copy(pos);
+    sun.vel.copy(tangent.add(drift));
+    sun.group.position.copy(sun.pos);
+    sun.worldPos.copy(sun.pos);
+    placed.push({ sun, pos });
+  }
+}
+
+function buildRandomLayout(portalKick) {
+  placeSunsSafely();
+
+  let planetPos = null;
+  for (let attempt = 0; attempt < 140; attempt += 1) {
+    const candidate = new THREE.Vector3(randomBetween(-17, 17), randomBetween(-10.8, 10.8), 0);
+    const safe = suns.every((sun) => {
+      const minSafe = Math.max(sun.auraRadius + 1.2, sun.size * 3.8);
+      return candidate.distanceTo(sun.pos) > minSafe;
+    });
+    if (safe) {
+      planetPos = candidate;
+      break;
+    }
+  }
+  if (!planetPos) {
+    const weightedAway = suns.reduce((sum, sun) => sum.add(sun.pos), new THREE.Vector3()).multiplyScalar(-1);
+    if (weightedAway.lengthSq() < 0.001) weightedAway.copy(randomUnitVector());
+    weightedAway.normalize();
+    planetPos = weightedAway.multiplyScalar(14.8);
+  }
+
+  let dominantSun = suns[0];
+  let dominantWeight = -Infinity;
+  for (const sun of suns) {
+    const d2 = Math.max(planetPos.distanceToSquared(sun.pos), 1);
+    const weight = sunGravityWeight(sun) / d2;
+    if (weight > dominantWeight) {
+      dominantWeight = weight;
+      dominantSun = sun;
+    }
+  }
+  const toDominant = dominantSun.pos.clone().sub(planetPos);
+  const distance = Math.max(toDominant.length(), 1);
+  const tangentSign = Math.random() < 0.5 ? -1 : 1;
+  const tangent = new THREE.Vector3(-toDominant.y, toDominant.x, 0).normalize().multiplyScalar(tangentSign);
+  const orbitalSpeed = Math.sqrt(sunGravityWeight(dominantSun) / distance) * randomBetween(0.78, 1.12);
+  const planetVel = tangent.multiplyScalar(orbitalSpeed)
+    .add(randomUnitVector().multiplyScalar(randomBetween(0.08, 0.36)))
+    .add(portalKick.clone().multiplyScalar(arrivedViaPortal ? 0.25 : 0.08));
+
+  spawnPoint.x = planetPos.x;
+  spawnPoint.y = planetPos.y;
+  return { planetPos, planetVel };
+}
+
 function resetGame() {
   const incomingSpeed = THREE.MathUtils.clamp(portalNumber('speed', 1), 0.4, 3.2);
   const portalKick = arrivedViaPortal
@@ -600,11 +877,12 @@ function resetGame() {
         0
       )
     : new THREE.Vector3(2.2, 1.08, 0);
+  const layout = buildRandomLayout(portalKick);
   state = {
     time: 0,
     days: 0,
     difficulty: 0.88,
-    stability: THREE.MathUtils.clamp(portalNumber('hp', 100), 35, 100),
+    health: THREE.MathUtils.clamp(portalNumber('hp', 100), 35, 100),
     signal: MAX_SIGNAL,
     mode: 'shield',
     paused: false,
@@ -616,6 +894,10 @@ function resetGame() {
     focus: 0,
     focusCooldown: 0,
     shake: 0,
+    damageFlash: 0,
+    supernovaFlash: 0,
+    supernovaCooldown: 0,
+    voidExposure: 0,
     grace: START_GRACE,
     lastDangerCue: -99,
     lastNearMiss: -99,
@@ -627,10 +909,12 @@ function resetGame() {
     toast: '',
     toastUntil: 0,
     critical: { burned: 0, frozen: 0, scattered: 0, collapse: 0 },
-    lastThreat: { burn: 0, cold: 0, chaos: 0, safe: true },
+    lastProximityWarn: -99,
+    lastDamageType: '',
+    lastThreat: { burn: 0, cold: 0, chaos: 0, safe: true, proximityIntensity: 0, damageType: '' },
     anchors: [],
-    planetPos: arrivedViaPortal ? new THREE.Vector3(-3.8, 2.8, 0) : new THREE.Vector3(0.2, -1.1, 0),
-    planetVel: portalKick,
+    planetPos: layout.planetPos,
+    planetVel: layout.planetVel,
   };
   planet.rotation.set(
     portalNumber('rotation_x', 0),
@@ -647,6 +931,8 @@ function resetGame() {
   }
   for (const effect of [...nearMissEffects]) feedbackGroup.remove(effect.mesh);
   nearMissEffects.length = 0;
+  for (const effect of [...supernovaEffects]) feedbackGroup.remove(effect.mesh);
+  supernovaEffects.length = 0;
   deathScreen.classList.add('hidden');
   deathScreen.removeAttribute('data-cause');
   pauseMenu.classList.add('hidden');
@@ -667,6 +953,106 @@ function setHighScore(days) {
   highScoreEl.textContent = String(getHighScore());
 }
 
+function clearTutorialHighlights() {
+  healthBar.classList.remove('tutorial-highlight');
+  signalMeter.classList.remove('tutorial-highlight');
+  document.querySelector('#mode-controls')?.classList.remove('tutorial-highlight');
+  document.querySelector('#mode-info')?.classList.remove('tutorial-highlight');
+  document.querySelector('#mobile-controls')?.classList.remove('tutorial-highlight');
+  tutorialRing.visible = false;
+  tutorialRing.material.opacity = 0;
+}
+
+function updateTutorialBox() {
+  if (!tutorial.active) return;
+  const step = tutorialSteps[tutorial.index];
+  tutorialTitle.textContent = step.title;
+  tutorialText.textContent = step.text;
+  tutorialBox.classList.remove('hidden');
+  clearTutorialHighlights();
+  if (step.highlight === 'signal') signalMeter.classList.add('tutorial-highlight');
+  if (step.highlight === 'modes') {
+    document.querySelector('#mode-controls')?.classList.add('tutorial-highlight');
+    document.querySelector('#mobile-controls')?.classList.add('tutorial-highlight');
+  }
+  if (step.highlight === 'focus') {
+    document.querySelector('#mode-info')?.classList.add('tutorial-highlight');
+    document.querySelector('#mobile-controls')?.classList.add('tutorial-highlight');
+  }
+}
+
+function startTutorial(replay = false) {
+  if (!state || state.dead) return;
+  if (!replay && (arrivedViaPortal || localStorage.getItem(TUTORIAL_KEY))) return;
+  infoScreen.classList.add('hidden');
+  storyScreen.classList.add('hidden');
+  pauseMenu.classList.add('hidden');
+  state.paused = false;
+  state.grace = Math.max(state.grace, 4);
+  state.health = Math.max(state.health, 70);
+  tutorial.active = true;
+  tutorial.index = 0;
+  tutorial.timer = 0;
+  updateTutorialBox();
+}
+
+function finishTutorial() {
+  if (!tutorial.active) return;
+  tutorial.active = false;
+  tutorialBox.classList.add('hidden');
+  clearTutorialHighlights();
+  localStorage.setItem(TUTORIAL_KEY, 'true');
+  if (state && !state.dead) {
+    state.grace = Math.max(state.grace, 2);
+    state.flashOmen = 'SURVIVE THE DAWN';
+    state.flashOmenUntil = state.time + 1.4;
+  }
+}
+
+function advanceTutorial() {
+  if (!tutorial.active) return;
+  if (tutorial.index >= tutorialSteps.length - 1) {
+    finishTutorial();
+    return;
+  }
+  tutorial.index += 1;
+  tutorial.timer = 0;
+  updateTutorialBox();
+}
+
+function notifyTutorial(action) {
+  if (!tutorial.active) return;
+  const step = tutorialSteps[tutorial.index];
+  if (step.waitFor === action) advanceTutorial();
+}
+
+function updateTutorial(realDt) {
+  if (!tutorial.active || !state || state.dead) return;
+  state.grace = Math.max(state.grace, 0.35);
+  state.health = Math.max(state.health, 45);
+  state.voidExposure = Math.min(state.voidExposure, 1.5);
+  tutorial.timer += realDt;
+  const step = tutorialSteps[tutorial.index];
+  if (step.duration && tutorial.timer >= step.duration) advanceTutorial();
+}
+
+function updateTutorialHighlight() {
+  if (!tutorial.active) return;
+  const step = tutorialSteps[tutorial.index];
+  if (step.highlight !== 'planet' && step.highlight !== 'sun') return;
+  const targetSun = suns.reduce((nearest, sun) => (
+    !nearest || sun.lastDistance < nearest.lastDistance ? sun : nearest
+  ), null);
+  const target = step.highlight === 'planet' ? state.planetPos : targetSun?.pos;
+  if (!target) return;
+  const size = step.highlight === 'planet' ? 2.3 : targetSun.auraRadius;
+  tutorialRing.visible = true;
+  tutorialRing.position.copy(target);
+  tutorialRing.scale.setScalar(size * (1 + Math.sin(state.time * 4.8) * 0.08));
+  tutorialRing.material.color.setHex(step.highlight === 'planet' ? 0x9fffd4 : targetSun.color.getHex());
+  tutorialRing.material.opacity = 0.34 + Math.sin(state.time * 5.6) * 0.12;
+}
+
 function setMode(mode) {
   if (!modes[mode] || !state) return;
   state.mode = mode;
@@ -678,8 +1064,16 @@ function setMode(mode) {
   modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
   showToast(modes[mode].toast, 1.1);
   pulsePlanet(modes[mode].color, 0.75);
+  if (music && audio && !muted) {
+    const t = audio.ctx.currentTime;
+    music.musicMaster.gain.cancelScheduledValues(t);
+    music.musicMaster.gain.setValueAtTime(music.musicMaster.gain.value, t);
+    music.musicMaster.gain.linearRampToValueAtTime(2.2, t + 0.07);
+    music.musicMaster.gain.setTargetAtTime(0.9, t + 0.07, 0.45);
+  }
   state.flashOmen = makeWarnings(state.lastThreat.burn, state.lastThreat.cold, state.lastThreat.chaos, state.lastThreat.nearest || Infinity, state.lastThreat.speed || 0)[0];
   state.flashOmenUntil = state.mode === 'observatory' ? state.time + 0.15 : state.time;
+  notifyTutorial('mode');
 }
 
 function showToast(text, duration = 0.9) {
@@ -708,6 +1102,7 @@ function togglePause(force) {
 
 function openInfoScreen() {
   if (!state) return;
+  if (tutorial.active) finishTutorial();
   storyScreen.classList.add('hidden');
   pauseMenu.classList.add('hidden');
   infoScreen.classList.remove('hidden');
@@ -732,7 +1127,12 @@ function closeOverlays() {
 function toggleMute() {
   muted = !muted;
   if (state) state.muted = muted;
+  localStorage.setItem('threesuns_muted', String(muted));
   muteButton.textContent = muted ? 'Unmute' : 'Mute';
+  if (music && audio) {
+    const t = audio.ctx.currentTime;
+    music.musicMaster.gain.setTargetAtTime(muted ? 0 : 0.9, t, 0.3);
+  }
 }
 
 function toggleQuality() {
@@ -746,40 +1146,94 @@ function toggleQuality() {
   showToast(highQuality ? 'LOW FX OFF' : 'LOW FX ON', 1);
 }
 
-function updateSunPositions(t) {
+function updateSunPositions(t, dt = 0) {
   const diff = state?.difficulty || 1;
+  if (state && dt > 0 && !state.dead) {
+    suns.forEach((sun) => {
+      const accel = new THREE.Vector3();
+      for (const other of suns) {
+        if (other === sun) continue;
+        const toOther = other.pos.clone().sub(sun.pos);
+        const d2 = Math.max(toOther.lengthSq(), 18);
+        accel.addScaledVector(toOther.normalize(), (sunGravityWeight(other) * 0.046) / d2);
+      }
+      const bound = Math.max(0, sun.pos.length() - 14.5);
+      if (bound > 0) accel.addScaledVector(sun.pos.clone().normalize(), -bound * 0.018);
+      sun.vel.addScaledVector(accel, dt);
+      if (sun.vel.length() > 3.0) sun.vel.setLength(3.0);
+      sun.vel.multiplyScalar(SUN_DAMPING);
+      sun.pos.addScaledVector(sun.vel, dt);
+      sun.pos.z = Math.sin(t * 0.34 + sun.phase) * 0.65;
+    });
+  }
   suns.forEach((sun, i) => {
     const p = sun.phase;
-    const wobble = Math.sin(t * (0.51 + i * 0.07) + p * 2.1) * 1.9 + Math.sin(t * 0.17 + i) * 1.1;
-    const rx = 9.6 + i * 2.5 + Math.sin(t * 0.11 + p) * 2.2;
-    const ry = 6.3 + i * 1.5 + Math.cos(t * 0.13 + p) * 1.4;
-    const a = t * (0.32 + i * 0.045 + diff * 0.012) + p + Math.sin(t * 0.21 + p) * 0.9;
-    sun.pos.set(
-      Math.cos(a) * rx + Math.sin(t * 0.73 + p) * wobble,
-      Math.sin(a * (1.17 + i * 0.08)) * ry + Math.cos(t * 0.49 + p) * 1.8,
-      Math.sin(t * 0.37 + p) * 0.9
-    );
     sun.group.position.copy(sun.pos);
+    sun.worldPos.copy(sun.pos);
     sun.core.rotation.y += 0.01 + i * 0.004;
     sun.glow.material.opacity = 0.28 + Math.sin(t * 2.2 + p) * 0.08;
     sun.rings.forEach((ring) => {
       const pulse = (t * (0.32 + i * 0.07 + diff * 0.025) + ring.userData.offset + Math.sin(t * 0.18 + p) * 0.08) % 1;
-      const scale = sun.size * (2.4 + pulse * (6.8 + diff * 0.8));
+      const scale = sun.size * (2.4 + pulse * (7.6 + diff * 0.8));
       ring.scale.set(scale, scale, scale);
       ring.rotation.z = t * (0.1 + i * 0.03);
-      ring.material.opacity = (1 - pulse) * (0.12 + diff * 0.035);
+      ring.material.opacity = (1 - pulse) * (0.16 + diff * 0.04);
     });
     pushTrail(sunTrails[i], sun.pos, 0.75);
+    const inBuf = sun.lastDistance > sun.killRadius && sun.lastDistance <= sun.dangerRadius;
+    const bufPulse = inBuf
+      ? 1 - THREE.MathUtils.smoothstep(sun.lastDistance, sun.killRadius, sun.dangerRadius)
+      : 0;
     sun.killRing.rotation.z = t * 0.22 + p;
-    sun.killRing.material.opacity = 0.13 + Math.sin(t * 1.8 + p) * 0.05;
+    sun.killRing.material.opacity = (0.13 + Math.sin(t * 1.8 + p) * 0.05) * (1 + bufPulse * 2.8);
     sun.dangerRing.rotation.z = -(t * 0.1 + p);
-    sun.dangerRing.material.opacity = 0.04 + Math.sin(t * 1.1 + p + 1.5) * 0.02;
+    sun.dangerRing.material.opacity = 0.075 + Math.sin(t * 1.1 + p + 1.5) * 0.03;
   });
+}
+
+function checkSunCollisions() {
+  if (!state || state.dead || tutorial.active || state.supernovaCooldown > 0) return;
+  const colliding = new Set();
+  const links = new Map(suns.map((sun) => [sun, new Set()]));
+  for (let i = 0; i < suns.length; i += 1) {
+    for (let j = i + 1; j < suns.length; j += 1) {
+      const a = suns[i];
+      const b = suns[j];
+      const distance = a.pos.distanceTo(b.pos);
+      const collisionDistance = a.size + b.size + SUN_COLLISION_PADDING;
+      if (distance <= collisionDistance) {
+        colliding.add(a);
+        colliding.add(b);
+        links.get(a).add(b);
+        links.get(b).add(a);
+      }
+    }
+  }
+  if (!colliding.size) return;
+
+  const start = colliding.values().next().value;
+  const cluster = [];
+  const stack = [start];
+  const seen = new Set();
+  while (stack.length) {
+    const sun = stack.pop();
+    if (seen.has(sun)) continue;
+    seen.add(sun);
+    cluster.push(sun);
+    links.get(sun).forEach((linked) => stack.push(linked));
+  }
+  const center = cluster.reduce((sum, sun) => sum.add(sun.pos), new THREE.Vector3()).multiplyScalar(1 / cluster.length);
+  const nearestPairDistance = cluster.reduce((nearest, sun, i) => {
+    for (let j = i + 1; j < cluster.length; j += 1) nearest = Math.min(nearest, sun.pos.distanceTo(cluster[j].pos));
+    return nearest;
+  }, Infinity);
+  triggerSupernova(center, nearestPairDistance, cluster);
 }
 
 function placeAnchor(clientX, clientY) {
   if (state.dead || state.paused) return;
   createAudio();
+  if (audio?.ctx.state === 'suspended') audio.ctx.resume().catch(() => {});
   const mode = modes[state.mode];
   const anchorCost = ANCHOR_SIGNAL_COST * mode.anchorCost;
   if (state.signal < anchorCost) {
@@ -793,8 +1247,8 @@ function placeAnchor(clientX, clientY) {
   pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   raycaster.ray.intersectPlane(playPlane, worldPoint);
-  worldPoint.x = THREE.MathUtils.clamp(worldPoint.x, -20, 20);
-  worldPoint.y = THREE.MathUtils.clamp(worldPoint.y, -13, 13);
+  worldPoint.x = THREE.MathUtils.clamp(worldPoint.x, -25, 25);
+  worldPoint.y = THREE.MathUtils.clamp(worldPoint.y, -16, 16);
   worldPoint.z = 0;
   if (state.anchors.length >= MAX_ANCHORS) {
     const old = state.anchors.shift();
@@ -805,12 +1259,14 @@ function placeAnchor(clientX, clientY) {
   state.anchors.push(makeAnchor(worldPoint));
   state.flashOmen = 'ANCHOR SINGS BRIEFLY';
   state.flashOmenUntil = state.time + 0.75;
+  notifyTutorial('anchor');
   playCue('anchor');
 }
 
 function triggerFocus() {
   if (state.dead || state.paused) return;
   if (state.focusCooldown > 0) {
+    notifyTutorial('focus');
     showToast('FOCUS RECHARGING', 0.8);
     return;
   }
@@ -821,6 +1277,7 @@ function triggerFocus() {
   state.flashOmenUntil = state.time + 1.1;
   showToast('FOCUS ACTIVE', 1.1);
   pulsePlanet(modes[state.mode].color, 0.85);
+  notifyTutorial('focus');
   blip(180, 0.34, 'sine', 0.9);
 }
 
@@ -860,6 +1317,72 @@ function updateNearMissEffects(dt) {
   }
 }
 
+function triggerSupernova(pos, sourceDistance, collidingSuns = suns) {
+  if (!state || state.dead || state.supernovaCooldown > 0) return;
+  const isTriple = collidingSuns.length >= 3;
+  const power = isTriple ? 1.25 : 1;
+  state.supernovaCooldown = 2.6;
+  state.supernovaFlash = power;
+  state.shake = Math.max(state.shake, isTriple ? 1.65 : 1.25);
+  state.flashOmen = isTriple ? 'THREE DAWNS SHATTERED' : 'BINARY IMPACT';
+  state.flashOmenUntil = state.time + 1.15;
+  showToast(isTriple ? 'THREE NEW DAWNS IGNITE' : 'TWIN STARS REIGNITE', 1.8);
+
+  const mesh = new THREE.Mesh(
+    new THREE.RingGeometry(0.8, 1.08, 112),
+    new THREE.MeshBasicMaterial({ color: 0xf8e9ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
+  );
+  mesh.position.copy(pos);
+  mesh.rotation.x = Math.PI / 2;
+  feedbackGroup.add(mesh);
+  supernovaEffects.push({ mesh, age: 0, power });
+
+  const distance = state.planetPos.distanceTo(pos);
+  if (distance < (isTriple ? 6.5 : 5.4)) {
+    placeSunsSafely(state.planetPos, collidingSuns);
+    kill(sourceDistance < 1.3 ? 'collapse' : 'scattered');
+    return;
+  }
+
+  const shock = 1 - THREE.MathUtils.smoothstep(distance, isTriple ? 6.5 : 5.4, isTriple ? 30 : 25);
+  if (shock > 0) {
+    const damage = THREE.MathUtils.lerp(12, isTriple ? 78 : 56, shock ** 1.25);
+    state.health = Math.max(0, state.health - damage);
+    state.damageFlash = Math.max(state.damageFlash, 0.9);
+    state.lastDamageType = 'chaos';
+    if (state.health <= 0) {
+      placeSunsSafely(state.planetPos, collidingSuns);
+      kill('collapse');
+      return;
+    }
+  }
+
+  placeSunsSafely(state.planetPos, collidingSuns);
+  state.grace = Math.max(state.grace, SUPERNOVA_GRACE);
+  state.nearMissArmed = false;
+  state.prevNearest = Infinity;
+  blip(52, 0.58, 'sawtooth', 0.85);
+}
+
+function updateSupernovaEffects(dt) {
+  if (state) {
+    state.supernovaFlash = Math.max(0, state.supernovaFlash - dt * 1.15);
+    state.supernovaCooldown = Math.max(0, state.supernovaCooldown - dt);
+  }
+  for (let i = supernovaEffects.length - 1; i >= 0; i -= 1) {
+    const effect = supernovaEffects[i];
+    effect.age += dt;
+    const life = 1 - effect.age / 1.15;
+    effect.mesh.scale.setScalar(1 + effect.age * 23 * (effect.power || 1));
+    effect.mesh.material.opacity = Math.max(0, life) * 0.95;
+    effect.mesh.material.color.lerp(colors.gold, dt * 1.8);
+    if (effect.age >= 1.15) {
+      feedbackGroup.remove(effect.mesh);
+      supernovaEffects.splice(i, 1);
+    }
+  }
+}
+
 function updateFocusRings(dt) {
   focusRings.forEach((item) => {
     if (!item.ring.visible) return;
@@ -889,6 +1412,11 @@ function physicsStep(dt) {
   let fatalCandidate = null;
   let fatalDistance = Infinity;
   let heat = 0;
+  let cold = 0;
+  let chaos = 0;
+  let totalDamage = 0;
+  let activeDamageType = '';
+  let activeDamageAmount = 0;
 
   planet.position.copy(pos);
   planet.updateMatrixWorld();
@@ -900,6 +1428,7 @@ function physicsStep(dt) {
     sun.worldPos.copy(tempSunWorldPos);
     const toSun = tempSunWorldPos.clone().sub(tempPlanetWorldPos);
     const d = Math.max(toSun.length(), 0.0001);
+    const dir = toSun.divideScalar(d);
     sun.lastDistance = d;
     if (d < nearest) {
       nearest = d;
@@ -909,100 +1438,140 @@ function physicsStep(dt) {
       fatalCandidate = sun;
       fatalDistance = d;
     }
-    const d2 = Math.max(d * d, 4.8);
-    heat += sun.heat / Math.max(0.55, d - sun.size * 0.38);
-    const pull = THREE.MathUtils.clamp((sun.pull * state.difficulty) / d2, 0, 2.45);
-    accel.addScaledVector(toSun.divideScalar(d), pull);
+    const d2 = Math.max(d * d, 3.8);
+    const pull = (sunGravityWeight(sun) * state.difficulty) / d2;
+    accel.addScaledVector(dir, pull);
+
+    if (d <= sun.auraRadius) {
+      const intensity = THREE.MathUtils.clamp((sun.auraRadius - d) / Math.max(0.001, sun.auraRadius - sun.killRadius), 0, 1);
+      const shaped = intensity ** 1.35;
+      const mode = modes[state.mode];
+      const modeMultiplier = sun.dangerType === 'heat' ? mode.heatDamage
+        : sun.dangerType === 'cold' ? mode.coldDamage : mode.chaosDamage;
+      const peakDamage = sun.dangerType === 'heat' ? 34 : sun.dangerType === 'cold' ? 20 : 27;
+      const damage = THREE.MathUtils.lerp(1.2, peakDamage, shaped) * modeMultiplier;
+      const threat = THREE.MathUtils.clamp(shaped * modeMultiplier, 0, 1.4);
+      if (sun.dangerType === 'heat') heat = Math.max(heat, threat);
+      else if (sun.dangerType === 'cold') cold = Math.max(cold, threat);
+      else chaos = Math.max(chaos, threat);
+      totalDamage += damage;
+      if (damage > activeDamageAmount) {
+        activeDamageAmount = damage;
+        activeDamageType = sun.dangerType;
+      }
+    }
   }
 
   for (const anchor of state.anchors) {
     const age = anchor.age / ANCHOR_LIFE;
-    const envelope = Math.sin((1 - age) * Math.PI * 0.5);
+    const envelope = Math.sin((1 - age) * Math.PI * 0.5) ** 0.75;
     const toAnchor = anchor.pos.clone().sub(pos);
-    const d2 = Math.max(toAnchor.lengthSq(), 1.8);
-    accel.addScaledVector(toAnchor.normalize(), THREE.MathUtils.clamp((10.4 * modes[state.mode].anchorPull * envelope) / d2, 0, 3.8));
+    const distance = Math.max(toAnchor.length(), 0.001);
+    const falloff = Math.max(distance, 1.35) ** 1.9;
+    accel.addScaledVector(toAnchor.divideScalar(distance), THREE.MathUtils.clamp((15.0 * modes[state.mode].anchorPull * envelope) / falloff, 0, 5.0));
   }
 
-  const centerPull = pos.clone().multiplyScalar(-0.012 - Math.max(0, state.difficulty - 1.2) * 0.002);
+  const centerPull = pos.clone().multiplyScalar(-0.006 - Math.max(0, pos.length() - 20) * 0.0015);
   accel.add(centerPull);
-  if (accel.length() > 5.2) accel.setLength(5.2);
+  if (accel.length() > 8.0) accel.setLength(8.0);
   vel.addScaledVector(accel, dt);
-  const maxSpeed = Math.min(16.5, 9.2 + state.difficulty * 2.2);
+  const maxSpeed = Math.min(18.5, 10.6 + state.difficulty * 2.6);
   if (vel.length() > maxSpeed) vel.setLength(maxSpeed);
-  vel.multiplyScalar(0.9982);
+  vel.multiplyScalar(PLANET_DAMPING);
   pos.addScaledVector(vel, dt);
 
   const speed = vel.length();
-  const cold = THREE.MathUtils.smoothstep(nearest, 18, 29);
-  const burn = THREE.MathUtils.smoothstep(heat, 0.88, 1.48);
-  const chaos = THREE.MathUtils.smoothstep(speed, 7.2, 11.8) + Math.max(0, pos.length() - 20) * 0.032;
   const mode = modes[state.mode];
-  const protectedBurn = burn * mode.heatDamage;
-  const protectedCold = cold * mode.coldDamage;
-  const protectedChaos = chaos * mode.chaosDamage;
-  const burnBuildup = burn * mode.heatBuildup;
-  const coldBuildup = cold * mode.coldBuildup;
-  const chaosBuildup = chaos * mode.chaosBuildup;
-  const safe = protectedBurn < 0.22 && protectedCold < 0.28 && protectedChaos < 0.34;
-  const graceFactor = state.grace > 0 ? 0.18 : 1;
-  const drain = (protectedBurn * 10.5 + protectedCold * 7.8 + protectedChaos * 9.2 + Math.max(0, state.difficulty - 1) * 0.45) * graceFactor;
-  state.stability += (safe ? 3.4 : -drain) * dt;
-  state.stability = THREE.MathUtils.clamp(state.stability, 0, 100);
-  const signalRegen = (5.8 + (safe ? 6.6 : 1.5) + (state.stability > 72 ? 2.2 : 0)) * mode.regen;
+  const auraActive = totalDamage > 0;
+  const voidOutside = pos.length() > OUTER_SAFE_RADIUS || nearest > VOID_SUNLIGHT_RADIUS;
+  state.voidExposure = voidOutside
+    ? state.voidExposure + dt
+    : Math.max(0, state.voidExposure - dt * 1.8);
+  const voidRamp = THREE.MathUtils.clamp((state.voidExposure - VOID_DAMAGE_DELAY) / 11, 0, 1);
+  const voidThreat = THREE.MathUtils.clamp((state.voidExposure - 1.2) / 10, 0, 1);
+  const voidDamage = voidRamp > 0 ? (1.5 + 17 * (voidRamp ** 1.35)) : 0;
+  const graceFactor = state.grace > 0 ? 0.28 : 1;
+  if (auraActive) {
+    const damage = totalDamage * graceFactor * dt;
+    state.health = Math.max(0, state.health - damage);
+    state.damageFlash = Math.max(state.damageFlash, THREE.MathUtils.clamp(damage * 0.09 + activeDamageAmount * 0.012, 0.18, 0.85));
+    state.lastDamageType = activeDamageType;
+    state.shake = Math.max(state.shake, THREE.MathUtils.clamp(Math.max(heat, cold, chaos) * 0.7, 0, 0.85));
+    if (state.time - state.lastProximityWarn > 0.7) {
+      state.lastProximityWarn = state.time;
+      state.flashOmen = activeDamageType === 'heat' ? 'HEAT RISING'
+        : activeDamageType === 'cold' ? 'FREEZE WARNING' : 'ORBIT UNSTABLE';
+      state.flashOmenUntil = state.time + 0.7;
+    }
+  }
+  if (voidDamage > 0) {
+    const damage = voidDamage * graceFactor * dt;
+    state.health = Math.max(0, state.health - damage);
+    state.damageFlash = Math.max(state.damageFlash, THREE.MathUtils.clamp(0.16 + voidRamp * 0.55, 0.16, 0.72));
+    state.lastDamageType = 'cold';
+    cold = Math.max(cold, 0.28 + voidRamp * 0.82);
+    if (state.time - state.lastProximityWarn > 1.1) {
+      state.lastProximityWarn = state.time;
+      state.flashOmen = state.voidExposure > 8 ? 'NO SUNLIGHT DETECTED' : 'VOID COLD RISING';
+      state.flashOmenUntil = state.time + 0.9;
+    }
+  } else if (voidThreat > 0) {
+    cold = Math.max(cold, voidThreat * 0.42);
+  }
+  if (!auraActive && !voidOutside) {
+    state.health = THREE.MathUtils.clamp(state.health + 4.2 * mode.regen * dt, 0, 100);
+  }
+  state.damageFlash = Math.max(0, state.damageFlash - dt * 1.8);
+  const safe = !auraActive && !voidOutside;
+  const signalRegen = (5.8 + (safe ? 7.2 : 1.3) + (state.health > 72 ? 2.2 : 0)) * mode.regen * 1.2;
   state.signal = THREE.MathUtils.clamp(state.signal + signalRegen * dt, 0, MAX_SIGNAL);
-  state.lastThreat = { burn, cold, chaos, safe, nearest, speed };
+
+  if (voidOutside && !activeDamageType) activeDamageType = 'cold';
+  const proximityIntensity = Math.max(heat, cold, chaos, voidThreat * 0.72);
+  const speedChaos = THREE.MathUtils.smoothstep(speed, 8.8, 13.2) * 0.34;
+  chaos = Math.max(chaos, speedChaos);
+  state.lastThreat = { burn: heat, cold, chaos, safe, nearest, speed, proximityIntensity, damageType: activeDamageType };
 
   if (state.time - state.lastModeBlock > 1.25) {
-    if (state.mode === 'shield' && burn > 0.5 && protectedBurn < burn * 0.55) {
+    if (state.mode === 'shield' && heat > 0.5) {
       state.lastModeBlock = state.time;
       showToast('SOLAR AURA HELD', 0.75);
-    } else if (state.mode === 'hibernation' && cold > 0.5 && protectedCold < cold * 0.55) {
+    } else if (state.mode === 'hibernation' && cold > 0.5) {
       state.lastModeBlock = state.time;
       showToast('DEEP COLD HELD', 0.75);
     }
   }
 
-  if (state.prevNearest < 3.45) state.nearMissArmed = true;
-  if (state.nearMissArmed && nearest > 4.75 && nearest > state.prevNearest && state.time - state.lastNearMiss > 2.3) {
+  if (state.prevNearest < (nearestSun?.killRadius ?? 2.5) + 0.75) state.nearMissArmed = true;
+  if (state.nearMissArmed && nearest > (nearestSun?.killRadius ?? 2.5) + 2.1 && nearest > state.prevNearest && state.time - state.lastNearMiss > 2.3) {
     state.nearMissArmed = false;
     triggerNearMiss(pos);
   }
   state.prevNearest = nearest;
 
-  const realDanger = Math.max(protectedBurn, protectedChaos, protectedCold * 0.75);
-  const inDangerRing = nearestSun ? nearestSun.lastDistance <= nearestSun.dangerRadius : false;
-  if (state.grace <= 0 && (realDanger > 0.62 || inDangerRing)) {
-    state.shake = Math.max(state.shake, (realDanger - 0.5) * 0.52);
+  if (auraActive) {
     if (state.time - state.lastDangerCue > 3.2) {
       state.lastDangerCue = state.time;
       playCue('danger');
     }
   }
 
-  const vulnerable = state.grace <= 0;
-  const burnedFatal = advanceCritical('burned', vulnerable && burnBuildup > 0.94, dt, 0.5);
-  const frozenFatal = advanceCritical('frozen', vulnerable && (nearest > 30.4 || coldBuildup > 0.96), dt, 1.05);
-  const scatteredFatal = advanceCritical('scattered', vulnerable && (chaosBuildup > 1.02 || speed > 12.4 + state.difficulty * 0.8 || pos.length() > 31), dt, 0.72);
-  const collapseFatal = advanceCritical('collapse', vulnerable && state.stability <= 0.5, dt, 0.45);
-
   let cause = null;
-  if (vulnerable && fatalCandidate) cause = fatalCandidate.deathCause;
-  else if (burnedFatal) cause = 'burned';
-  else if (frozenFatal) cause = 'frozen';
-  else if (scatteredFatal) cause = 'scattered';
-  else if (collapseFatal) cause = 'collapse';
+  if (fatalCandidate) cause = fatalCandidate.deathCause;
+  else if (state.health <= 0) {
+    cause = state.lastDamageType === 'heat' ? 'burned'
+      : state.lastDamageType === 'cold' ? 'frozen'
+        : state.lastDamageType === 'chaos' ? 'scattered' : 'collapse';
+  }
 
   if (DEBUG_DEATH_CAUSE) {
     if (state.time - (state.lastDebugLog || 0) > 0.5 || (cause && !state.dead)) {
       state.lastDebugLog = state.time;
-      const activeDanger = burnBuildup >= coldBuildup && burnBuildup >= chaosBuildup
-        ? 'heat'
-        : coldBuildup >= chaosBuildup
-          ? 'cold'
-          : 'chaos';
+      const activeDanger = heat >= cold && heat >= chaos ? 'heat' : cold >= chaos ? 'cold' : 'chaos';
       console.log('[death-debug]', {
         nearestSun: nearestSun?.id ?? null,
         nearestDistance: Number(nearest.toFixed(2)),
+        proximityIntensity: Number(proximityIntensity.toFixed(2)),
         activeDanger,
         fatalCandidate: fatalCandidate?.id ?? null,
         fatalCandidateCause: fatalCandidate?.deathCause ?? null,
@@ -1012,9 +1581,15 @@ function physicsStep(dt) {
     }
   }
 
+  if (cause && tutorial.active) {
+    cause = null;
+    state.health = Math.max(state.health, 45);
+    state.damageFlash = Math.max(state.damageFlash, 0.35);
+    if (fatalCandidate) state.planetVel.addScaledVector(state.planetPos.clone().sub(fatalCandidate.pos).normalize(), 1.8);
+  }
   if (cause) kill(cause);
 
-  updateHud(burn, cold, chaos, makeWarnings(burn, cold, chaos, nearest, speed));
+  updateHud(heat, cold, chaos, makeWarnings(heat, cold, chaos, nearest, speed));
 }
 
 function makeWarnings(burn, cold, chaos, nearest, speed) {
@@ -1022,21 +1597,21 @@ function makeWarnings(burn, cold, chaos, nearest, speed) {
   const messages = [];
   const observed = state.mode === 'observatory';
   if (state.grace > 0) messages.push('CIVILIZATION DREAMING');
-  if (state.critical.burned > 0.18) messages.push('BURN WARNING: CLOUDS CURLING');
-  else if (burn > 0.55 || nearest < 4.4) messages.push(observed ? 'RED SUN ASCENDING — HEAT RISK FROM ALPHA' : 'RED SUN ASCENDING');
-  if (state.critical.frozen > 0.3) messages.push('FREEZE WARNING: LAST FIRES DIM');
-  else if (cold > 0.5) messages.push(observed ? 'BLUE QUIET ERA — FREEZE RISK RISING' : 'BLUE QUIET ERA');
-  if (state.critical.scattered > 0.22) messages.push('SCATTER WARNING: ORBITS TEARING');
-  else if (chaos > 0.54 || speed > 9.2) messages.push(observed ? 'GRAVITY IS LYING — VELOCITY SPIKE SOON' : 'GRAVITY IS LYING');
-  if (state.critical.collapse > 0.12 || state.stability < 18) messages.push('COLLAPSE WARNING: CITIES COUNT BACKWARD');
-  if (!messages.length && burn < 0.18 && cold < 0.2 && chaos < 0.25) messages.push(observed ? 'STABLE WINDOW — SIGNAL RECOVERING' : state.stability > 82 ? 'CIVILIZATION DREAMING' : 'STABLE WINDOW');
+  if (state.voidExposure > VOID_DAMAGE_DELAY) messages.push(state.voidExposure > 8 ? 'NO SUNLIGHT DETECTED' : 'VOID COLD RISING');
+  if (burn > 0.55) messages.push(observed ? 'HEAT RISING — ALPHA AURA' : 'HEAT RISING');
+  if (cold > 0.5) messages.push(observed ? 'FREEZE WARNING — BETA AURA' : 'FREEZE WARNING');
+  if (chaos > 0.54 || speed > 9.2) messages.push(observed ? 'ORBIT UNSTABLE — GAMMA PULL' : 'ORBIT UNSTABLE');
+  if (state.health < 18) messages.push('HEALTH CRITICAL');
+  if (!messages.length && burn < 0.18 && cold < 0.2 && chaos < 0.25) messages.push(observed ? 'STABLE WINDOW — HEALTH RECOVERING' : state.health > 82 ? 'CIVILIZATION DREAMING' : 'STABLE WINDOW');
   if (state.focusCooldown <= 0 && state.days > 4 && messages.length < 2) messages.push('FOCUS READY — SLOW TIME');
   return messages.length ? messages.slice(0, 2) : ['STABLE WINDOW'];
 }
 
 function updateHud(burn, cold, chaos, warnings) {
   daysEl.textContent = String(state.days);
-  stabilityEl.textContent = `${Math.ceil(state.stability)}%`;
+  healthEl.textContent = `${Math.ceil(state.health)}%`;
+  healthFill.style.width = `${Math.max(0, state.health)}%`;
+  healthBar.classList.toggle('flash', state.damageFlash > 0.05);
   modeReadout.textContent = modes[state.mode].label;
   modeName.textContent = `MODE: ${modes[state.mode].label}`;
   modeEffect.textContent = modes[state.mode].effect;
@@ -1046,6 +1621,11 @@ function updateHud(burn, cold, chaos, warnings) {
   coldMeter.style.width = `${Math.max(8, cold * 100)}%`;
   chaosMeter.style.width = `${Math.max(8, chaos * 100)}%`;
   signalMeter.style.width = `${Math.max(8, (state.signal / MAX_SIGNAL) * 100)}%`;
+  document.body.classList.toggle('danger-heat', state.lastThreat.damageType === 'heat');
+  document.body.classList.toggle('danger-cold', state.lastThreat.damageType === 'cold');
+  document.body.classList.toggle('danger-chaos', state.lastThreat.damageType === 'chaos');
+  document.body.classList.toggle('danger-supernova', state.supernovaFlash > 0);
+  dangerVignette.style.setProperty('--danger-alpha', String(THREE.MathUtils.clamp(state.damageFlash + state.lastThreat.proximityIntensity * 0.28 + state.supernovaFlash, 0, 0.95)));
   if (state.time < 10) {
     hintLine.textContent = hintTexts[Math.min(hintTexts.length - 1, Math.floor(state.time / 2))];
     hintLine.style.opacity = String(1 - Math.max(0, state.time - 8) / 2);
@@ -1137,22 +1717,22 @@ function updateAnchors(dt) {
 }
 
 function updatePlanetVisuals(dt) {
-  const { burn, cold, chaos } = state.lastThreat;
+  const { burn, cold, chaos, proximityIntensity: pI = 0 } = state.lastThreat;
   const modeColor = modes[state.mode].color;
   cloudLayer.rotation.y += dt * 0.35;
   atmosphere.material.color.setHex(modeColor);
-  atmosphere.material.opacity = 0.13 + Math.max(burn, cold, chaos) * 0.12;
+  atmosphere.material.opacity = 0.13 + Math.max(burn, cold, chaos) * 0.12 + pI * 0.22;
   shieldRing.material.opacity = state.mode === 'shield' ? 0.86 : 0;
   hibernationShell.material.opacity = state.mode === 'hibernation' ? 0.34 : 0;
   observatoryArc.material.opacity = state.mode === 'observatory' ? 0.9 : 0;
   observatoryArc.rotation.z += dt * 1.3;
-  heatCracks.material.opacity = burn * 0.62;
-  frostTint.material.opacity = cold * 0.18 + (state.mode === 'hibernation' ? 0.08 : 0);
-  chaosRing.material.opacity = chaos * 0.54;
+  heatCracks.material.opacity = burn * 0.62 + pI * 0.38;
+  frostTint.material.opacity = cold * 0.18 + (state.mode === 'hibernation' ? 0.08 : 0) + pI * 0.14;
+  chaosRing.material.opacity = chaos * 0.54 + pI * 0.32;
   chaosRing.rotation.z += dt * (2.4 + chaos * 6);
   chaosRing.position.x = Math.sin(state.time * 41) * chaos * 0.035;
   chaosRing.position.y = Math.cos(state.time * 37) * chaos * 0.035;
-  const stress = Math.max(0, 1 - state.stability / 100);
+  const stress = Math.max(0, 1 - state.health / 100);
   planetCore.material.emissiveIntensity = THREE.MathUtils.lerp(0.48, 0.08, stress) + burn * 0.35;
   const sleepDim = state.mode === 'hibernation' ? 0.55 : 1;
   civGlow.material.opacity = Math.max(0.04, 0.22 - stress * 0.16) * sleepDim;
@@ -1170,13 +1750,17 @@ function updateCamera(dt) {
   const shake = state.shake * state.shake * (state.highQuality ? 0.55 : 0.22);
   camera.position.x = Math.sin(state.time * 37) * shake;
   camera.position.y = Math.cos(state.time * 31) * shake;
-  camera.position.z = 46 + Math.sin(state.time * 18) * shake;
+  camera.position.z = 56 + Math.sin(state.time * 18) * shake;
   camera.lookAt(0, 0, 0);
 }
 
 function animate() {
   requestAnimationFrame(animate);
-  let dt = Math.min(clock.getDelta(), MAX_DT);
+  const realDt = Math.min(clock.getDelta(), MAX_DT);
+  updateMusic();
+  let dt = realDt;
+  updateTutorial(realDt);
+  if (tutorial.active && !state.dead) dt *= 0.18;
   if (state.paused && !state.dead) {
     updateCamera(0);
     if (window.animateVibeJamPortals) window.animateVibeJamPortals();
@@ -1191,10 +1775,12 @@ function animate() {
   if (state.focusCooldown > 0) state.focusCooldown = Math.max(0, state.focusCooldown - dt);
 
   state.time += dt;
-  updateSunPositions(state.time);
+  updateSunPositions(state.time, dt);
+  checkSunCollisions();
   fadeTrail(planetTrail, state.highQuality ? 0.983 : 0.94);
   sunTrails.forEach((trail) => fadeTrail(trail, state.highQuality ? 0.987 : 0.93));
   updateNearMissEffects(dt);
+  updateSupernovaEffects(dt);
   updateFocusRings(dt);
   portalGuideRing.rotation.z += dt * 0.45;
   portalGuideRing.scale.setScalar(1 + Math.sin(state.time * 2.1) * 0.08);
@@ -1207,19 +1793,22 @@ function animate() {
       + Math.max(0, state.days - 20) * 0.007
       + Math.max(0, state.days - 60) * 0.009
       + Math.max(0, state.days - 100) * 0.018;
+    state.difficulty *= 0.85 + THREE.MathUtils.smoothstep(state.days, 0, 25) * 0.15;
+    state.difficulty *= 1 + THREE.MathUtils.smoothstep(state.days, 60, 110) * 0.1;
     updateAnchors(dt);
     physicsStep(dt);
     planet.position.copy(state.planetPos);
     window.currentSpeed = Number(state.planetVel.length().toFixed(2));
     planetCore.rotation.y += dt * 1.3;
     planetCore.rotation.x += dt * 0.27;
-    civRing.rotation.z += dt * (1.3 + (100 - state.stability) * 0.012);
-    civRing.material.opacity = 0.42 + state.stability / 230 + Math.sin(state.time * 8) * 0.05;
+    civRing.rotation.z += dt * (1.3 + (100 - state.health) * 0.012);
+    civRing.material.opacity = 0.42 + state.health / 230 + Math.sin(state.time * 8) * 0.05;
     pushTrail(planetTrail, state.planetPos, 0.95);
     if (state.planetVel.length() > 6) {
       pushTrail(planetTrail, state.planetPos.clone().addScaledVector(state.planetVel, -0.018), 0.46);
     }
     updatePlanetVisuals(dt);
+    updateTutorialHighlight();
     checkCustomPortal();
   } else {
     civRing.material.opacity = 0.18 + Math.sin(state.time * 12) * 0.06;
@@ -1246,11 +1835,14 @@ function resize() {
 window.addEventListener('resize', resize);
 window.addEventListener('pointerdown', (event) => {
   if (event.target.closest('button')) return;
+  if (event.target.closest('#tutorial-box')) return;
   placeAnchor(event.clientX, event.clientY);
 }, { passive: true });
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Escape') {
-    if (!infoScreen.classList.contains('hidden') || !storyScreen.classList.contains('hidden')) {
+    if (tutorial.active) {
+      finishTutorial();
+    } else if (!infoScreen.classList.contains('hidden') || !storyScreen.classList.contains('hidden')) {
       closeOverlays();
     } else {
       togglePause();
@@ -1283,11 +1875,15 @@ pauseNextButton.addEventListener('click', nextGame);
 pauseCopyButton.addEventListener('click', copyShareText);
 controlsButton.addEventListener('click', () => { controlsText.hidden = !controlsText.hidden; });
 portalBadge.addEventListener('click', nextGame);
+tutorialSkip.addEventListener('click', finishTutorial);
+tutorialGotIt.addEventListener('click', advanceTutorial);
 document.querySelector('#info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#pause-info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#pause-story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#info-resume-button').addEventListener('click', closeOverlays);
+infoTutorialButton.addEventListener('click', () => { closeOverlays(); startTutorial(true); });
+infoStoryButton.addEventListener('click', openStoryScreen);
 document.querySelector('#info-restart-button').addEventListener('click', () => { closeOverlays(); resetGame(); });
 document.querySelector('#info-next-button').addEventListener('click', nextGame);
 document.querySelector('#story-resume-button').addEventListener('click', closeOverlays);
@@ -1303,8 +1899,9 @@ actionButtons.forEach((button) => {
   });
 });
 
+muteButton.textContent = muted ? 'Unmute' : 'Mute';
 initPortals();
 resize();
 resetGame();
 animate();
-if (!localStorage.getItem('threesuns_seen_info') && !arrivedViaPortal) openInfoScreen();
+startTutorial(false);

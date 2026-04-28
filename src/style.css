@@ -43,6 +43,40 @@ body {
   touch-action: none;
 }
 
+#danger-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--danger-alpha, 0);
+  transition: opacity 120ms linear, background 120ms linear;
+  mix-blend-mode: screen;
+}
+
+body.danger-heat #danger-vignette {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 34%, rgba(255, 70, 36, 0.12) 62%, rgba(255, 40, 28, 0.34)),
+    repeating-linear-gradient(90deg, rgba(255, 128, 64, 0.04), transparent 2px, transparent 8px);
+}
+
+body.danger-cold #danger-vignette {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 36%, rgba(124, 220, 255, 0.16) 66%, rgba(158, 231, 255, 0.32)),
+    linear-gradient(135deg, rgba(174, 239, 255, 0.08), transparent 45%);
+}
+
+body.danger-chaos #danger-vignette {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 30%, rgba(179, 119, 255, 0.16) 66%, rgba(255, 255, 255, 0.2)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06), transparent 2px, transparent 7px);
+}
+
+body.danger-supernova #danger-vignette {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.92), rgba(255, 211, 106, 0.48) 28%, rgba(179, 119, 255, 0.34) 58%, transparent 78%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 3px, transparent 12px);
+}
+
 #hud {
   position: fixed;
   inset: 0;
@@ -103,6 +137,29 @@ h1 {
 .stats strong {
   color: white;
   font-variant-numeric: tabular-nums;
+}
+
+.health-bar {
+  width: 100%;
+  height: 0.36rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.34);
+}
+
+.health-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff596f, #ffd36a 48%, #9fffd4);
+  box-shadow: 0 0 16px rgba(159, 255, 212, 0.45);
+  transition: width 120ms linear, filter 120ms linear;
+}
+
+.health-bar.flash i {
+  filter: brightness(2.3) saturate(1.45);
 }
 
 #warnings {
@@ -569,6 +626,75 @@ button:hover {
   font-size: 0.58rem;
 }
 
+#tutorial-box {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.6rem;
+  background: linear-gradient(145deg, rgba(5, 7, 18, 0.86), rgba(28, 15, 48, 0.74));
+  box-shadow: 0 0 34px rgba(179, 119, 255, 0.18), inset 0 0 24px rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+#tutorial-box.hidden {
+  display: none;
+}
+
+#tutorial-box h2 {
+  margin: 0.35rem 0 0.45rem;
+  color: white;
+  font-size: clamp(1rem, 4vw, 1.35rem);
+  line-height: 1.08;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#tutorial-text {
+  color: rgba(246, 240, 255, 0.84);
+  font-size: clamp(0.88rem, 2.5vw, 1rem);
+  line-height: 1.45;
+}
+
+.tutorial-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+#tutorial-got-it,
+#tutorial-skip {
+  flex: 1 1 7rem;
+  min-height: 2.1rem;
+  padding: 0.42rem 0.7rem;
+  border-radius: 0.16rem;
+  box-shadow: none;
+  font-size: 0.64rem;
+}
+
+#tutorial-got-it {
+  color: white;
+  background: rgba(179, 119, 255, 0.28);
+}
+
+#tutorial-skip {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tutorial-highlight {
+  position: relative;
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.58) !important;
+  box-shadow: 0 0 22px rgba(255, 255, 255, 0.22), 0 0 42px rgba(179, 119, 255, 0.24) !important;
+}
+
 /* HUD INFO / STORY link buttons */
 .hud-links {
   display: flex;
@@ -796,6 +922,11 @@ button:hover {
 
   #mobile-controls {
     display: flex;
+  }
+
+  #tutorial-box {
+    width: min(22rem, calc(100vw - 1.6rem));
+    padding: 0.85rem;
   }
 
   #portal-badge {
