@@ -25,6 +25,11 @@ const daysEl = document.querySelector('#days');
 const healthEl = document.querySelector('#health');
 const healthFill = document.querySelector('#health-fill');
 const healthBar = document.querySelector('.health-bar');
+const runModeReadout = document.querySelector('#run-mode-readout');
+const levelRow = document.querySelector('#level-row');
+const levelReadout = document.querySelector('#level-readout');
+const nextLevelRow = document.querySelector('#next-level-row');
+const nextLevelReadout = document.querySelector('#next-level-readout');
 const highScoreEl = document.querySelector('#high-score');
 const warningsEl = document.querySelector('#warnings');
 const heatMeter = document.querySelector('#heat-meter');
@@ -33,6 +38,10 @@ const chaosMeter = document.querySelector('#chaos-meter');
 const signalMeter = document.querySelector('#signal-meter');
 const hintLine = document.querySelector('#hint-line');
 const toastLine = document.querySelector('#toast-line');
+const levelBanner = document.querySelector('#level-banner');
+const levelBannerTitle = document.querySelector('#level-banner-title');
+const levelBannerSubtitle = document.querySelector('#level-banner-subtitle');
+const levelBannerName = document.querySelector('#level-banner-name');
 const modeReadout = document.querySelector('#mode-readout');
 const modeName = document.querySelector('#mode-name');
 const modeEffect = document.querySelector('#mode-effect');
@@ -55,6 +64,7 @@ const pauseCopyButton = document.querySelector('#pause-copy-button');
 const controlsButton = document.querySelector('#controls-button');
 const controlsText = document.querySelector('#controls-text');
 const portalBadge = document.querySelector('#portal-badge');
+const runModeToggle = document.querySelector('#run-mode-toggle');
 const infoScreen = document.querySelector('#info-screen');
 const storyScreen = document.querySelector('#story-screen');
 const tutorialBox = document.querySelector('#tutorial-box');
@@ -64,6 +74,8 @@ const tutorialGotIt = document.querySelector('#tutorial-got-it');
 const tutorialSkip = document.querySelector('#tutorial-skip');
 const infoTutorialButton = document.querySelector('#info-tutorial-button');
 const infoStoryButton = document.querySelector('#info-story-button');
+const infoSurvivalButton = document.querySelector('#info-survival-button');
+const infoLevelButton = document.querySelector('#info-level-button');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const actionButtons = [...document.querySelectorAll('[data-action]')];
 
@@ -104,6 +116,9 @@ const OUTER_SAFE_RADIUS = 30;
 const VOID_SUNLIGHT_RADIUS = 23;
 const VOID_DAMAGE_DELAY = 4;
 const TUTORIAL_KEY = 'three-suns-tutorial-complete';
+const RUN_MODE_KEY = 'three-suns-run-mode';
+const LEVEL_HIGH_KEY = 'three-suns-highest-level';
+const COMET_WARNING_LEAD = 2;
 const DEBUG_DEATH_CAUSE = false;
 
 const portalParams = new URLSearchParams(window.location.search);
@@ -116,28 +131,36 @@ const customExitPosition = new THREE.Vector3(18.4, -12.2, 0);
 
 const modes = {
   shield: {
-    label: 'SHIELD', toast: 'SHIELD MODE', effect: 'SHIELD: solar aura resistance ↑ cold risk ↑',
-    heatDamage: 0.35, heatBuildup: 0.5, coldDamage: 1.25, coldBuildup: 1.25, chaosDamage: 1, chaosBuildup: 1,
+    label: 'SHIELD', toast: 'SHIELD MODE', effect: 'SHIELD: red heat aura resistance ↑ cold/chaos risk modest ↑',
+    heatDamage: 0.25, heatBuildup: 0.3, coldDamage: 1.12, coldBuildup: 1.1, chaosDamage: 1.08, chaosBuildup: 1.08,
     regen: 1, anchorCost: 1, anchorPull: 1, color: 0xffd36a,
   },
   hibernation: {
-    label: 'SLEEP', toast: 'SLEEP MODE', effect: 'SLEEP: deep cold resistance ↑ signal regen ↑ chaos risk ↑',
-    heatDamage: 1, heatBuildup: 1, coldDamage: 0.35, coldBuildup: 0.5, chaosDamage: 1.25, chaosBuildup: 1.25,
+    label: 'SLEEP', toast: 'SLEEP MODE', effect: 'SLEEP: blue cold aura resistance ↑ signal regen ↑ chaos risk modest ↑',
+    heatDamage: 1.08, heatBuildup: 1.08, coldDamage: 0.25, coldBuildup: 0.3, chaosDamage: 1.12, chaosBuildup: 1.12,
     regen: 1.35, anchorCost: 1, anchorPull: 1, color: 0x9ee7ff,
   },
   observatory: {
-    label: 'OBSERVE', toast: 'OBSERVATORY MODE', effect: 'OBSERVE: clearer omens ↑ anchor cost ↓ aura protection ↓',
-    heatDamage: 1.15, heatBuildup: 1.15, coldDamage: 1.15, coldBuildup: 1.15, chaosDamage: 1.15, chaosBuildup: 1.15,
-    regen: 1, anchorCost: 0.75, anchorPull: 1.12, color: 0xffffff,
+    label: 'OBSERVE', toast: 'OBSERVATORY MODE', effect: 'OBSERVE: gamma chaos aura resistance ↑ clearer omens ↑ anchor cost ↓',
+    heatDamage: 1.08, heatBuildup: 1.08, coldDamage: 1.08, coldBuildup: 1.08, chaosDamage: 0.5, chaosBuildup: 0.55,
+    regen: 1, anchorCost: 0.65, anchorPull: 1.14, color: 0xffffff,
   },
 };
 
+const LEVELS = [
+  { level: 1, day: 20, name: 'FIRST DAWN' },
+  { level: 2, day: 40, name: 'ORBITAL APPRENTICE' },
+  { level: 3, day: 60, name: 'STELLAR NAVIGATOR' },
+  { level: 4, day: 90, name: 'GRAVITY SAINT' },
+  { level: 5, day: 120, name: 'LAST WORLD KEEPER' },
+];
+
 const hintTexts = [
-  'Click/tap to place gravity anchors',
-  'Signal limits anchors',
-  'Switch modes: 1 Shield, 2 Sleep, 3 Observe',
+  'Click/tap = gravity anchor',
+  'Suns kill on contact, auras drain health',
+  'Switch modes: Shield heat, Sleep cold, Observe chaos',
   'Space / FOCUS slows the dawn',
-  'Touching a sun is fatal — modes only reduce aura damage',
+  'Stay warm, but do not touch the suns',
 ];
 
 if (portalContinuity.username) window.selfUsername = portalContinuity.username;
@@ -155,17 +178,18 @@ let audio;
 let music = null;
 let muted = localStorage.getItem('threesuns_muted') === 'true';
 let highQuality = true;
+let selectedRunMode = localStorage.getItem(RUN_MODE_KEY) === 'level' ? 'level' : 'survival';
 
 const tutorial = { active: false, index: 0, timer: 0 };
 const tutorialSteps = [
-  { title: 'THIS IS YOUR WORLD', text: 'Keep it alive.', highlight: 'planet', duration: 3 },
-  { title: 'READ THE SUNS', text: 'Touching a sun kills instantly. Auras damage health.', highlight: 'sun', duration: 4 },
-  { title: 'PLACE AN ANCHOR', text: 'Click or tap anywhere to place a gravity anchor.', highlight: 'planet', waitFor: 'anchor' },
-  { title: 'ANCHORS COST SIGNAL', text: 'Signal limits anchor spam and refills while you fly well.', highlight: 'signal', duration: 3.2 },
-  { title: 'SWITCH SURVIVAL MODES', text: 'Use Shield for solar heat, Sleep for deep cold, Observe for clearer omens and cheaper anchors.', highlight: 'modes', waitFor: 'mode' },
-  { title: 'FOCUS SLOWS TIME', text: 'Press Space or tap FOCUS to bend a dangerous moment.', highlight: 'focus', waitFor: 'focus' },
-  { title: 'DO NOT CAMP THE VOID', text: 'Stay close enough for warmth, far enough to survive. The outer dark will freeze you if you camp outside.', highlight: 'sun', duration: 4.2 },
-  { title: 'SURVIVE THE DAWN', text: 'Survive as many days as possible.', highlight: 'planet', duration: 3.2 },
+  { title: 'THIS IS YOUR WORLD', text: 'Keep it alive.', highlight: 'planet' },
+  { title: 'READ THE SUNS', text: 'Touching a sun kills instantly. Auras damage health.', highlight: 'sun' },
+  { title: 'PLACE AN ANCHOR', text: 'Click or tap to place a gravity anchor. Anchors bend your path.', highlight: 'planet' },
+  { title: 'ANCHORS COST SIGNAL', text: 'Signal limits anchor spam and refills while you fly well.', highlight: 'signal' },
+  { title: 'SWITCH MODES', text: 'Shield protects from red heat aura. Sleep protects from blue cold aura. Observe protects from yellow/gamma chaos aura.', highlight: 'modes' },
+  { title: 'FOCUS SLOWS TIME', text: 'Press Space or tap FOCUS to bend a dangerous moment.', highlight: 'focus' },
+  { title: 'DO NOT CAMP THE VOID', text: 'Stay close enough for warmth, far enough to survive. The outer dark will freeze you if you camp outside.', highlight: 'sun' },
+  { title: 'SURVIVE THE DAWN', text: 'Survival Mode is endless. Level Mode rewards day milestones. Watch for comet warnings.', highlight: 'planet' },
 ];
 
 function makeCircleTexture(color, soft = true) {
@@ -303,6 +327,8 @@ function makeSun(def) {
   const killRadius = visualRadius + PLANET_RADIUS * 0.72;
   const dangerRadius = visualRadius * 2.35;
   const auraRadius = visualRadius * 4.0 + PLANET_RADIUS;
+  const auraGlow = makeSprite(color, auraRadius * 2.0, 0.075);
+  group.add(auraGlow);
 
   const killRing = new THREE.Mesh(
     new THREE.RingGeometry(killRadius - 0.06, killRadius, 72),
@@ -320,7 +346,7 @@ function makeSun(def) {
     size, visualRadius, killRadius, dangerRadius, auraRadius,
     phase, heat, pull,
     deathCause, dangerType,
-    group, core, glow, rings, killRing, dangerRing,
+    group, core, glow, auraGlow, rings, killRing, dangerRing,
     pos: new THREE.Vector3(),
     vel: new THREE.Vector3(),
     worldPos: new THREE.Vector3(),
@@ -472,6 +498,9 @@ scene.add(anchorGroup);
 const feedbackGroup = new THREE.Group();
 scene.add(feedbackGroup);
 
+const cometGroup = new THREE.Group();
+scene.add(cometGroup);
+
 const portalGuide = new THREE.Group();
 portalGuide.position.copy(customExitPosition);
 const portalGuideRing = new THREE.Mesh(
@@ -487,6 +516,8 @@ scene.add(portalGuide);
 
 const nearMissEffects = [];
 const supernovaEffects = [];
+const explosionParticles = [];
+const comets = [];
 const focusRings = [];
 const tutorialRing = new THREE.Mesh(
   new THREE.RingGeometry(0.9, 1.02, 96),
@@ -868,7 +899,9 @@ function buildRandomLayout(portalKick) {
   return { planetPos, planetVel };
 }
 
-function resetGame() {
+function resetGame(runMode = selectedRunMode) {
+  selectedRunMode = runMode === 'level' ? 'level' : 'survival';
+  localStorage.setItem(RUN_MODE_KEY, selectedRunMode);
   const incomingSpeed = THREE.MathUtils.clamp(portalNumber('speed', 1), 0.4, 3.2);
   const portalKick = arrivedViaPortal
     ? new THREE.Vector3(
@@ -882,6 +915,14 @@ function resetGame() {
     time: 0,
     days: 0,
     difficulty: 0.88,
+    runMode: selectedRunMode,
+    currentLevel: 0,
+    nextLevelIndex: 0,
+    levelGravityBonus: 0,
+    levelAuraBonus: 0,
+    levelBannerUntil: 0,
+    levelBannerFadeAt: 0,
+    meteorShower: null,
     health: THREE.MathUtils.clamp(portalNumber('hp', 100), 35, 100),
     signal: MAX_SIGNAL,
     mode: 'shield',
@@ -889,6 +930,8 @@ function resetGame() {
     muted,
     highQuality,
     dead: false,
+    deathFreeze: 0,
+    deathToken: 0,
     deathCause: '',
     deathWasHighScore: false,
     focus: 0,
@@ -908,6 +951,8 @@ function resetGame() {
     flashOmenUntil: 0,
     toast: '',
     toastUntil: 0,
+    nextCometWarnAt: randomBetween(16, 22),
+    pendingComet: null,
     critical: { burned: 0, frozen: 0, scattered: 0, collapse: 0 },
     lastProximityWarn: -99,
     lastDamageType: '',
@@ -933,13 +978,20 @@ function resetGame() {
   nearMissEffects.length = 0;
   for (const effect of [...supernovaEffects]) feedbackGroup.remove(effect.mesh);
   supernovaEffects.length = 0;
+  for (const particle of [...explosionParticles]) feedbackGroup.remove(particle.sprite);
+  explosionParticles.length = 0;
+  for (const comet of [...comets]) removeComet(comet);
+  comets.length = 0;
   deathScreen.classList.add('hidden');
   deathScreen.removeAttribute('data-cause');
+  levelBanner.classList.add('hidden');
+  levelBanner.classList.remove('fading');
   pauseMenu.classList.add('hidden');
   infoScreen.classList.add('hidden');
   storyScreen.classList.add('hidden');
   shareStatus.textContent = '';
-  highScoreEl.textContent = String(getHighScore());
+  updateScoreReadout();
+  updateRunModeToggle();
   setMode(state.mode);
   updateHud(0, 0, 0, ['omens quiet']);
 }
@@ -950,7 +1002,43 @@ function getHighScore() {
 
 function setHighScore(days) {
   if (days > getHighScore()) localStorage.setItem('three-suns-high-score', String(days));
-  highScoreEl.textContent = String(getHighScore());
+  updateScoreReadout();
+}
+
+function getHighestLevel() {
+  return Number.parseInt(localStorage.getItem(LEVEL_HIGH_KEY) || '0', 10) || 0;
+}
+
+function setHighestLevel(level) {
+  if (level > getHighestLevel()) localStorage.setItem(LEVEL_HIGH_KEY, String(level));
+  updateScoreReadout();
+}
+
+function getLevelName(level) {
+  return LEVELS.find((item) => item.level === level)?.name || 'UNCHARTED';
+}
+
+function updateScoreReadout() {
+  if (!state || state.runMode === 'survival') highScoreEl.textContent = String(getHighScore());
+  else highScoreEl.textContent = `L${getHighestLevel()}`;
+}
+
+function updateRunModeToggle() {
+  if (!runModeToggle) return;
+  const mode = state?.runMode || selectedRunMode;
+  runModeToggle.textContent = mode === 'level' ? 'LEVEL' : 'SURVIVAL';
+  runModeToggle.title = mode === 'level'
+    ? 'Level: reach milestones and level up'
+    : 'Survival: endless run — survive as long as possible';
+  runModeToggle.classList.toggle('active', mode === 'level');
+}
+
+function startRunMode(mode) {
+  selectedRunMode = mode === 'level' ? 'level' : 'survival';
+  closeOverlays();
+  resetGame(selectedRunMode);
+  showToast(selectedRunMode === 'level' ? 'LEVEL MODE' : 'SURVIVAL MODE', 1.2);
+  pulsePlanet(selectedRunMode === 'level' ? 0xffffff : 0x9fffd4, 0.9);
 }
 
 function clearTutorialHighlights() {
@@ -1022,18 +1110,14 @@ function advanceTutorial() {
 
 function notifyTutorial(action) {
   if (!tutorial.active) return;
-  const step = tutorialSteps[tutorial.index];
-  if (step.waitFor === action) advanceTutorial();
+  if (action === 'anchor' || action === 'mode' || action === 'focus') pulsePlanet(modes[state.mode].color, 0.45);
 }
 
-function updateTutorial(realDt) {
+function updateTutorial() {
   if (!tutorial.active || !state || state.dead) return;
   state.grace = Math.max(state.grace, 0.35);
   state.health = Math.max(state.health, 45);
   state.voidExposure = Math.min(state.voidExposure, 1.5);
-  tutorial.timer += realDt;
-  const step = tutorialSteps[tutorial.index];
-  if (step.duration && tutorial.timer >= step.duration) advanceTutorial();
 }
 
 function updateTutorialHighlight() {
@@ -1062,8 +1146,9 @@ function setMode(mode) {
   modeName.textContent = `MODE: ${modes[mode].label}`;
   modeEffect.textContent = modes[mode].effect;
   modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
-  showToast(modes[mode].toast, 1.1);
-  pulsePlanet(modes[mode].color, 0.75);
+  showToast(`${modes[mode].label} ACTIVE`, 1.1);
+  pulsePlanet(modes[mode].color, 1.05);
+  state.damageFlash = Math.max(state.damageFlash, 0.25);
   if (music && audio && !muted) {
     const t = audio.ctx.currentTime;
     music.musicMaster.gain.cancelScheduledValues(t);
@@ -1082,6 +1167,71 @@ function showToast(text, duration = 0.9) {
   state.toastUntil = state.time + duration;
   toastLine.textContent = text;
   toastLine.classList.add('visible');
+}
+
+function showBanner(title, subtitle, name = '') {
+  levelBannerTitle.textContent = title;
+  levelBannerSubtitle.textContent = subtitle || 'Difficulty increased';
+  levelBannerName.textContent = name;
+  levelBanner.classList.remove('hidden', 'fading');
+  state.levelBannerFadeAt = state.time + 2;
+  state.levelBannerUntil = state.time + 2.45;
+}
+
+function showLevelBanner(level, name, subtitle) {
+  showBanner(`LEVEL ${level} REACHED`, subtitle, name);
+}
+
+function updateLevelBanner() {
+  if (!state || state.levelBannerUntil <= 0) return;
+  levelBanner.classList.toggle('fading', state.time >= state.levelBannerFadeAt);
+  if (state.time >= state.levelBannerUntil) {
+    levelBanner.classList.add('hidden');
+    levelBanner.classList.remove('fading');
+    state.levelBannerUntil = 0;
+  }
+}
+
+function updateLevelMode() {
+  if (!state || state.runMode !== 'level') return;
+  const next = LEVELS[state.nextLevelIndex];
+  if (!next || state.days < next.day) return;
+  state.currentLevel = next.level;
+  state.nextLevelIndex += 1;
+  let scalingText = 'Difficulty increased';
+  if (next.level > 1 && next.level % 2 === 0) {
+    state.levelAuraBonus += 0.05;
+    scalingText = 'Aura damage increased';
+  } else if (next.level > 1) {
+    state.levelGravityBonus += 0.05;
+    scalingText = 'Gravity increased';
+  }
+  state.health = THREE.MathUtils.clamp(state.health + 20, 0, 100);
+  state.signal = THREE.MathUtils.clamp(state.signal + 38, 0, MAX_SIGNAL);
+  setHighestLevel(state.currentLevel);
+  showToast(`LEVEL ${next.level} — ${next.name}`, 2.4);
+  showLevelBanner(next.level, next.name, scalingText);
+  state.flashOmen = `LEVEL ${next.level} — ${next.name}`;
+  state.flashOmenUntil = state.time + 2.4;
+  pulsePlanet(0xffffff, 1.1);
+  playCue('highScore');
+  if (next.level % 3 === 0) triggerMeteorShower();
+}
+
+function triggerMeteorShower() {
+  if (!state || state.runMode !== 'level') return;
+  state.meteorShower = {
+    startAt: state.time + 2.2,
+    nextAt: state.time + 2.2,
+    remaining: 7,
+    activeUntil: state.time + 9,
+  };
+  state.flashOmen = 'METEOR SHOWER — THE SKY IS BREAKING';
+  state.flashOmenUntil = state.time + 2.2;
+  window.setTimeout(() => {
+    if (state?.meteorShower) showBanner('METEOR SHOWER', 'The sky is breaking', 'Move between the falling lights');
+  }, 700);
+  playCue('danger');
 }
 
 function pulsePlanet(color, duration = 0.7) {
@@ -1155,7 +1305,7 @@ function updateSunPositions(t, dt = 0) {
         if (other === sun) continue;
         const toOther = other.pos.clone().sub(sun.pos);
         const d2 = Math.max(toOther.lengthSq(), 18);
-        accel.addScaledVector(toOther.normalize(), (sunGravityWeight(other) * 0.046) / d2);
+        accel.addScaledVector(toOther.normalize(), (sunGravityWeight(other) * (1 + (state.levelGravityBonus || 0)) * 0.046) / d2);
       }
       const bound = Math.max(0, sun.pos.length() - 14.5);
       if (bound > 0) accel.addScaledVector(sun.pos.clone().normalize(), -bound * 0.018);
@@ -1171,7 +1321,10 @@ function updateSunPositions(t, dt = 0) {
     sun.group.position.copy(sun.pos);
     sun.worldPos.copy(sun.pos);
     sun.core.rotation.y += 0.01 + i * 0.004;
-    sun.glow.material.opacity = 0.28 + Math.sin(t * 2.2 + p) * 0.08;
+    const pulseSpeed = sun.id === 'alpha' ? 3.1 : sun.id === 'beta' ? 1.45 : 4.4;
+    sun.glow.material.opacity = 0.32 + Math.sin(t * pulseSpeed + p) * 0.1;
+    sun.auraGlow.material.opacity = 0.055 + Math.sin(t * (pulseSpeed * 0.55) + p) * 0.018;
+    sun.auraGlow.scale.setScalar(sun.auraRadius * 2.0 * (1 + Math.sin(t * 1.2 + p) * 0.025));
     sun.rings.forEach((ring) => {
       const pulse = (t * (0.32 + i * 0.07 + diff * 0.025) + ring.userData.offset + Math.sin(t * 0.18 + p) * 0.08) % 1;
       const scale = sun.size * (2.4 + pulse * (7.6 + diff * 0.8));
@@ -1259,6 +1412,8 @@ function placeAnchor(clientX, clientY) {
   state.anchors.push(makeAnchor(worldPoint));
   state.flashOmen = 'ANCHOR SINGS BRIEFLY';
   state.flashOmenUntil = state.time + 0.75;
+  triggerRipple(worldPoint, colors.violet.getHex(), 0.5, 4.6, 0.68);
+  pulsePlanet(colors.violet.getHex(), 0.42);
   notifyTutorial('anchor');
   playCue('anchor');
 }
@@ -1303,14 +1458,26 @@ function triggerNearMiss(pos) {
   playCue('nearMiss');
 }
 
+function triggerRipple(pos, color = 0xffffff, duration = 0.55, speed = 5.2, opacity = 0.62) {
+  const mesh = new THREE.Mesh(
+    new THREE.RingGeometry(0.45, 0.52, 64),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
+  );
+  mesh.position.copy(pos);
+  mesh.rotation.x = Math.PI / 2;
+  feedbackGroup.add(mesh);
+  nearMissEffects.push({ mesh, age: 0, duration, speed, opacity });
+}
+
 function updateNearMissEffects(dt) {
   for (let i = nearMissEffects.length - 1; i >= 0; i -= 1) {
     const effect = nearMissEffects[i];
     effect.age += dt;
-    const life = 1 - effect.age / 0.7;
-    effect.mesh.scale.setScalar(1 + effect.age * 5.8);
-    effect.mesh.material.opacity = Math.max(0, life) * 0.72;
-    if (effect.age >= 0.7) {
+    const duration = effect.duration || 0.7;
+    const life = 1 - effect.age / duration;
+    effect.mesh.scale.setScalar(1 + effect.age * (effect.speed || 5.8));
+    effect.mesh.material.opacity = Math.max(0, life) * (effect.opacity || 0.72);
+    if (effect.age >= duration) {
       feedbackGroup.remove(effect.mesh);
       nearMissEffects.splice(i, 1);
     }
@@ -1336,6 +1503,7 @@ function triggerSupernova(pos, sourceDistance, collidingSuns = suns) {
   mesh.rotation.x = Math.PI / 2;
   feedbackGroup.add(mesh);
   supernovaEffects.push({ mesh, age: 0, power });
+  spawnExplosionParticles(pos, isTriple ? 0xf8e9ff : collidingSuns[0]?.color.getHex() || 0xffffff, isTriple ? 18 : 12, power);
 
   const distance = state.planetPos.distanceTo(pos);
   if (distance < (isTriple ? 6.5 : 5.4)) {
@@ -1364,6 +1532,35 @@ function triggerSupernova(pos, sourceDistance, collidingSuns = suns) {
   blip(52, 0.58, 'sawtooth', 0.85);
 }
 
+function spawnExplosionParticles(pos, color = 0xffffff, count = 10, power = 1, direction = null) {
+  const baseAngle = direction ? Math.atan2(direction.y, direction.x) : 0;
+  for (let i = 0; i < count; i += 1) {
+    const sprite = makeSprite(color, randomBetween(0.16, 0.34) * power, 0.9);
+    sprite.position.copy(pos);
+    const spread = direction ? randomBetween(-0.75, 0.75) : randomBetween(0, Math.PI * 2);
+    const angle = direction ? baseAngle + spread : spread;
+    const vel = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0).multiplyScalar(randomBetween(7, 14) * power);
+    feedbackGroup.add(sprite);
+    explosionParticles.push({ sprite, vel, age: 0, life: randomBetween(0.45, 0.85), size: sprite.scale.x });
+  }
+}
+
+function updateExplosionParticles(dt) {
+  for (let i = explosionParticles.length - 1; i >= 0; i -= 1) {
+    const particle = explosionParticles[i];
+    particle.age += dt;
+    particle.sprite.position.addScaledVector(particle.vel, dt);
+    particle.vel.multiplyScalar(1 - dt * 1.8);
+    const life = Math.max(0, 1 - particle.age / particle.life);
+    particle.sprite.material.opacity = life * 0.85;
+    particle.sprite.scale.setScalar(particle.size * (1 + particle.age * 2.5));
+    if (particle.age >= particle.life) {
+      feedbackGroup.remove(particle.sprite);
+      explosionParticles.splice(i, 1);
+    }
+  }
+}
+
 function updateSupernovaEffects(dt) {
   if (state) {
     state.supernovaFlash = Math.max(0, state.supernovaFlash - dt * 1.15);
@@ -1379,6 +1576,148 @@ function updateSupernovaEffects(dt) {
     if (effect.age >= 1.15) {
       feedbackGroup.remove(effect.mesh);
       supernovaEffects.splice(i, 1);
+    }
+  }
+}
+
+function cometDirectionLabel(dir) {
+  if (Math.abs(dir.x) > Math.abs(dir.y)) return dir.x > 0 ? 'WEST VECTOR' : 'EAST VECTOR';
+  return dir.y > 0 ? 'SOUTH VECTOR' : 'NORTH VECTOR';
+}
+
+function warnComet() {
+  const side = Math.floor(Math.random() * 4);
+  const start = new THREE.Vector3(
+    side === 0 ? -34 : side === 1 ? 34 : randomBetween(-30, 30),
+    side === 2 ? -22 : side === 3 ? 22 : randomBetween(-18, 18),
+    0
+  );
+  const target = new THREE.Vector3(randomBetween(-9, 9), randomBetween(-6, 6), 0);
+  const dir = target.sub(start).normalize();
+  state.pendingComet = { at: state.time + COMET_WARNING_LEAD, start, dir };
+  state.nextCometWarnAt = Infinity;
+  state.flashOmen = state.mode === 'observatory'
+    ? `COMET INBOUND — ${cometDirectionLabel(dir)}`
+    : 'COMET INBOUND';
+  state.flashOmenUntil = state.time + 1.75;
+  playCue('danger');
+}
+
+function spawnComet(config) {
+  const isMeteor = Boolean(config.isMeteor);
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(isMeteor ? 0.17 : 0.28, 14, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  const glow = makeSprite(isMeteor ? 0xc7f2ff : 0xfff0b8, isMeteor ? 1.15 : 1.9, isMeteor ? 0.28 : 0.34);
+  const trail = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), config.dir.clone().multiplyScalar(isMeteor ? -3.4 : -5)]),
+    new THREE.LineBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.78, blending: THREE.AdditiveBlending })
+  );
+  const group = new THREE.Group();
+  group.add(trail, glow, head);
+  group.position.copy(config.start);
+  cometGroup.add(group);
+  comets.push({
+    group, head, glow, trail,
+    pos: config.start.clone(),
+    vel: config.dir.clone().multiplyScalar(config.speed || randomBetween(13.5, 16.5)),
+    age: 0,
+    isMeteor,
+    damage: config.damage || 70,
+    impulse: config.impulse || 3.7,
+  });
+}
+
+function removeComet(comet) {
+  cometGroup.remove(comet.group);
+}
+
+function triggerCometImpact(comet) {
+  state.health = Math.max(0, state.health - comet.damage);
+  state.planetVel.addScaledVector(comet.vel.clone().normalize(), comet.impulse);
+  state.shake = Math.max(state.shake, comet.isMeteor ? 0.72 : 1.1);
+  state.damageFlash = Math.max(state.damageFlash, 0.95);
+  state.lastDamageType = 'chaos';
+  state.flashOmen = comet.isMeteor ? 'METEOR IMPACT' : 'COMET IMPACT';
+  state.flashOmenUntil = state.time + 1.25;
+  showToast(comet.isMeteor ? 'METEOR IMPACT' : 'COMET IMPACT', 1.25);
+  triggerNearMiss(state.planetPos);
+  spawnExplosionParticles(state.planetPos, comet.isMeteor ? 0xc7f2ff : 0xffd36a, comet.isMeteor ? 7 : 10, comet.isMeteor ? 0.62 : 0.9, comet.vel.clone().normalize());
+  if (state.health <= 0) kill('impact');
+}
+
+function spawnShowerMeteor() {
+  const side = Math.floor(Math.random() * 4);
+  const start = new THREE.Vector3(
+    side === 0 ? -36 : side === 1 ? 36 : randomBetween(-28, 28),
+    side === 2 ? -24 : side === 3 ? 24 : randomBetween(-18, 18),
+    0
+  );
+  let target = state.planetPos.clone().add(new THREE.Vector3(randomBetween(-9, 9), randomBetween(-7, 7), 0));
+  if (target.distanceTo(state.planetPos) < 4.5) target.add(randomUnitVector().multiplyScalar(5.2));
+  spawnComet({
+    start,
+    dir: target.sub(start).normalize(),
+    isMeteor: true,
+    speed: randomBetween(10.5, 13.2),
+    damage: randomBetween(20, 35),
+    impulse: 1.6,
+  });
+}
+
+function updateMeteorShower() {
+  if (!state?.meteorShower || state.dead || tutorial.active) return;
+  const shower = state.meteorShower;
+  if (state.time < shower.startAt) return;
+  if (shower.remaining > 0 && state.time >= shower.nextAt) {
+    spawnShowerMeteor();
+    shower.remaining -= 1;
+    shower.nextAt = state.time + randomBetween(0.55, 1.05);
+  }
+  if (state.time > shower.activeUntil && shower.remaining <= 0) state.meteorShower = null;
+}
+
+function updateComets(dt) {
+  if (!state || state.dead || tutorial.active) return;
+  updateMeteorShower();
+  if (!state.pendingComet && state.time >= state.nextCometWarnAt) warnComet();
+  if (state.pendingComet && state.time >= state.pendingComet.at) {
+    spawnComet(state.pendingComet);
+    state.pendingComet = null;
+    state.nextCometWarnAt = state.time + randomBetween(20, 40);
+  }
+  for (let i = comets.length - 1; i >= 0; i -= 1) {
+    const comet = comets[i];
+    comet.age += dt;
+    if (comet.isMeteor) {
+      const accel = new THREE.Vector3();
+      for (const sun of suns) {
+        const toSun = sun.pos.clone().sub(comet.pos);
+        const d2 = Math.max(toSun.lengthSq(), 8);
+        accel.addScaledVector(toSun.normalize(), (sunGravityWeight(sun) * (1 + (state.levelGravityBonus || 0)) * 0.18) / d2);
+      }
+      if (accel.length() > 2.4) accel.setLength(2.4);
+      comet.vel.addScaledVector(accel, dt);
+    }
+    comet.pos.addScaledVector(comet.vel, dt);
+    comet.group.position.copy(comet.pos);
+    comet.group.rotation.z = Math.atan2(comet.vel.y, comet.vel.x);
+    comet.trail.geometry.setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      comet.vel.clone().normalize().multiplyScalar(comet.isMeteor ? -3.8 : -5.6),
+    ]);
+    comet.glow.material.opacity = 0.22 + Math.sin(state.time * 12) * 0.08;
+    if (comet.pos.distanceTo(state.planetPos) < 0.95) {
+      triggerCometImpact(comet);
+      removeComet(comet);
+      comets.splice(i, 1);
+      continue;
+    }
+    const burned = suns.some((sun) => comet.pos.distanceTo(sun.pos) < sun.killRadius + 0.65);
+    if (burned || comet.age > 7 || Math.abs(comet.pos.x) > 42 || Math.abs(comet.pos.y) > 28) {
+      removeComet(comet);
+      comets.splice(i, 1);
     }
   }
 }
@@ -1417,6 +1756,7 @@ function physicsStep(dt) {
   let totalDamage = 0;
   let activeDamageType = '';
   let activeDamageAmount = 0;
+  let reducedDamageType = '';
 
   planet.position.copy(pos);
   planet.updateMatrixWorld();
@@ -1439,7 +1779,7 @@ function physicsStep(dt) {
       fatalDistance = d;
     }
     const d2 = Math.max(d * d, 3.8);
-    const pull = (sunGravityWeight(sun) * state.difficulty) / d2;
+    const pull = (sunGravityWeight(sun) * state.difficulty * (1 + (state.levelGravityBonus || 0))) / d2;
     accel.addScaledVector(dir, pull);
 
     if (d <= sun.auraRadius) {
@@ -1448,9 +1788,10 @@ function physicsStep(dt) {
       const mode = modes[state.mode];
       const modeMultiplier = sun.dangerType === 'heat' ? mode.heatDamage
         : sun.dangerType === 'cold' ? mode.coldDamage : mode.chaosDamage;
-      const peakDamage = sun.dangerType === 'heat' ? 34 : sun.dangerType === 'cold' ? 20 : 27;
-      const damage = THREE.MathUtils.lerp(1.2, peakDamage, shaped) * modeMultiplier;
+      const peakDamage = sun.dangerType === 'heat' ? 48 : sun.dangerType === 'cold' ? 40 : 44;
+      const damage = THREE.MathUtils.lerp(2.2, peakDamage, shaped) * modeMultiplier * (1 + (state.levelAuraBonus || 0));
       const threat = THREE.MathUtils.clamp(shaped * modeMultiplier, 0, 1.4);
+      if (shaped > 0.35 && modeMultiplier <= 0.55) reducedDamageType = sun.dangerType;
       if (sun.dangerType === 'heat') heat = Math.max(heat, threat);
       else if (sun.dangerType === 'cold') cold = Math.max(cold, threat);
       else chaos = Math.max(chaos, threat);
@@ -1519,7 +1860,7 @@ function physicsStep(dt) {
     cold = Math.max(cold, voidThreat * 0.42);
   }
   if (!auraActive && !voidOutside) {
-    state.health = THREE.MathUtils.clamp(state.health + 4.2 * mode.regen * dt, 0, 100);
+    state.health = THREE.MathUtils.clamp(state.health + 4.8 * mode.regen * dt, 0, 100);
   }
   state.damageFlash = Math.max(0, state.damageFlash - dt * 1.8);
   const safe = !auraActive && !voidOutside;
@@ -1533,12 +1874,15 @@ function physicsStep(dt) {
   state.lastThreat = { burn: heat, cold, chaos, safe, nearest, speed, proximityIntensity, damageType: activeDamageType };
 
   if (state.time - state.lastModeBlock > 1.25) {
-    if (state.mode === 'shield' && heat > 0.5) {
+    if (state.mode === 'shield' && reducedDamageType === 'heat') {
       state.lastModeBlock = state.time;
       showToast('SOLAR AURA HELD', 0.75);
-    } else if (state.mode === 'hibernation' && cold > 0.5) {
+    } else if (state.mode === 'hibernation' && reducedDamageType === 'cold') {
       state.lastModeBlock = state.time;
       showToast('DEEP COLD HELD', 0.75);
+    } else if (state.mode === 'observatory' && reducedDamageType === 'chaos') {
+      state.lastModeBlock = state.time;
+      showToast('RESONANCE DAMPED', 0.75);
     }
   }
 
@@ -1609,6 +1953,14 @@ function makeWarnings(burn, cold, chaos, nearest, speed) {
 
 function updateHud(burn, cold, chaos, warnings) {
   daysEl.textContent = String(state.days);
+  runModeReadout.textContent = state.runMode === 'level' ? 'LEVEL' : 'SURVIVAL';
+  levelRow.style.display = state.runMode === 'level' ? '' : 'none';
+  nextLevelRow.style.display = state.runMode === 'level' ? '' : 'none';
+  if (state.runMode === 'level') {
+    const next = LEVELS[state.nextLevelIndex];
+    levelReadout.textContent = state.currentLevel > 0 ? `${state.currentLevel}` : '0';
+    nextLevelReadout.textContent = next ? `${next.day}D` : 'MAX';
+  }
   healthEl.textContent = `${Math.ceil(state.health)}%`;
   healthFill.style.width = `${Math.max(0, state.health)}%`;
   healthBar.classList.toggle('flash', state.damageFlash > 0.05);
@@ -1625,7 +1977,8 @@ function updateHud(burn, cold, chaos, warnings) {
   document.body.classList.toggle('danger-cold', state.lastThreat.damageType === 'cold');
   document.body.classList.toggle('danger-chaos', state.lastThreat.damageType === 'chaos');
   document.body.classList.toggle('danger-supernova', state.supernovaFlash > 0);
-  dangerVignette.style.setProperty('--danger-alpha', String(THREE.MathUtils.clamp(state.damageFlash + state.lastThreat.proximityIntensity * 0.28 + state.supernovaFlash, 0, 0.95)));
+  document.body.classList.toggle('low-health', state.health < 20 && !state.dead);
+  dangerVignette.style.setProperty('--danger-alpha', String(THREE.MathUtils.clamp(state.damageFlash + state.lastThreat.proximityIntensity * 0.42 + state.supernovaFlash, 0, 0.95)));
   if (state.time < 10) {
     hintLine.textContent = hintTexts[Math.min(hintTexts.length - 1, Math.floor(state.time / 2))];
     hintLine.style.opacity = String(1 - Math.max(0, state.time - 8) / 2);
@@ -1643,37 +1996,53 @@ function updateHud(burn, cold, chaos, warnings) {
 function kill(cause) {
   if (state.dead) return;
   state.dead = true;
+  state.deathFreeze = 0.2;
+  state.deathToken += 1;
   state.deathCause = cause;
-  const previousBest = getHighScore();
-  setHighScore(state.days);
-  state.deathWasHighScore = state.days > previousBest;
+  state.supernovaFlash = Math.max(state.supernovaFlash, 0.9);
+  state.shake = Math.max(state.shake, 1.2);
+  state.lastDamageType = cause === 'burned' ? 'heat' : cause === 'frozen' ? 'cold' : 'chaos';
+  const previousBest = state.runMode === 'level' ? getHighestLevel() : getHighScore();
+  if (state.runMode === 'level') setHighestLevel(state.currentLevel);
+  else setHighScore(state.days);
+  state.deathWasHighScore = state.runMode === 'level' ? state.currentLevel > previousBest : state.days > previousBest;
   const days = state.days;
   const causeLabel = {
     burned: 'Burned',
     frozen: 'Frozen',
     scattered: 'Chaos',
     collapse: 'Collapse',
+    impact: 'Impact',
   }[cause];
   const titles = {
     burned: 'THE DAWN CONSUMED YOU',
     frozen: 'THE LAST CITY FROZE',
     scattered: days % 2 ? 'GRAVITY FORGOT YOU' : 'THE HIDDEN MATH WON',
     collapse: 'NO ONE WILL REMEMBER THE ORBIT',
+    impact: 'THE SKY STRUCK BACK',
   };
   const messagePools = {
     burned: ['The red sun taught the oceans to boil.', 'The atmosphere became a funeral flame.', 'The cities glowed once, then vanished.'],
     frozen: ['Warmth became a myth.', 'The oceans stopped remembering waves.', 'The last signal arrived as ice.'],
     scattered: ['Your orbit became a rumor.', 'Resonance completed its sentence.', 'The world missed itself by a fraction.'],
     collapse: ['Civilization understood too late.', 'The last observatory blinked twice.', 'History became a closed set.'],
+    impact: ['The comet did not ask permission.', 'The sky remembered violence.', 'A bright stone ended the calculation.'],
   };
   const messages = Object.fromEntries(Object.entries(messagePools).map(([key, pool]) => [key, pool[days % pool.length]]));
   deathScreen.dataset.cause = cause;
   deathTitle.textContent = titles[cause];
-  deathStats.textContent = `Your civilization survived ${days} days.`;
+  deathStats.textContent = state.runMode === 'level'
+    ? `Level ${state.currentLevel} ${state.currentLevel ? getLevelName(state.currentLevel) : 'UNREACHED'} / ${days} days survived.`
+    : `Survival Mode: your civilization survived ${days} days.`;
   deathMessage.textContent = messages[cause];
-  deathHighScore.textContent = `Cause ${causeLabel} / High score ${getHighScore()}`;
+  deathHighScore.textContent = state.runMode === 'level'
+    ? `Cause ${causeLabel} / Highest level ${getHighestLevel()}`
+    : `Cause ${causeLabel} / High score ${getHighScore()}`;
   shareStatus.textContent = state.deathWasHighScore ? 'New high score. The dawn is annoyed.' : '';
-  deathScreen.classList.remove('hidden');
+  const token = state.deathToken;
+  window.setTimeout(() => {
+    if (state?.dead && state.deathToken === token) deathScreen.classList.remove('hidden');
+  }, 200);
   playCue('death');
   if (state.deathWasHighScore) window.setTimeout(() => playCue('highScore'), 420);
 }
@@ -1681,7 +2050,9 @@ function kill(cause) {
 async function copyShareText() {
   if (!state || !navigator.clipboard) return;
   const url = `${window.location.origin}${window.location.pathname}`;
-  const text = `I survived ${state.days} days in Three Suns: Chaotic Dawn ☀️☀️☀️ ${url}`;
+  const text = state.runMode === 'level'
+    ? `I reached Level ${state.currentLevel} after ${state.days} days in Three Suns: Chaotic Dawn ${url}`
+    : `I survived ${state.days} days in Three Suns: Chaotic Dawn ${url}`;
   try {
     await navigator.clipboard.writeText(text);
     shareStatus.textContent = 'Copied survival boast.';
@@ -1701,7 +2072,7 @@ function updateAnchors(dt) {
     anchor.halo.scale.setScalar(1.1 + Math.sin(state.time * 9 + i) * 0.24 + anchor.age * 0.35);
     anchor.arms.scale.setScalar(1 + Math.sin(state.time * 7 + i) * 0.08);
     const mid = anchor.pos.clone().lerp(state.planetPos, 0.5);
-    mid.z = 0.9 + Math.sin(state.time * 3 + i) * 0.25;
+    mid.z = 0.8 + Math.sin(state.time * 2.2 + i) * 0.12;
     const points = [anchor.pos, mid, state.planetPos].map((point) => point.clone());
     anchor.line.geometry.setFromPoints(points);
     anchor.line.material.opacity = THREE.MathUtils.clamp(life, 0, 1) * 0.38;
@@ -1748,8 +2119,9 @@ function checkCustomPortal() {
 function updateCamera(dt) {
   state.shake = Math.max(0, state.shake - dt * 0.8);
   const shake = state.shake * state.shake * (state.highQuality ? 0.55 : 0.22);
-  camera.position.x = Math.sin(state.time * 37) * shake;
-  camera.position.y = Math.cos(state.time * 31) * shake;
+  const drift = state.dead ? 0 : 0.18;
+  camera.position.x = Math.sin(state.time * 37) * shake + Math.sin(state.time * 0.17) * drift;
+  camera.position.y = Math.cos(state.time * 31) * shake + Math.cos(state.time * 0.13) * drift;
   camera.position.z = 56 + Math.sin(state.time * 18) * shake;
   camera.lookAt(0, 0, 0);
 }
@@ -1761,13 +2133,21 @@ function animate() {
   let dt = realDt;
   updateTutorial(realDt);
   if (tutorial.active && !state.dead) dt *= 0.18;
+  if (!state.dead && state.health < 20) dt *= 0.94;
   if (state.paused && !state.dead) {
     updateCamera(0);
     if (window.animateVibeJamPortals) window.animateVibeJamPortals();
     renderer.render(scene, camera);
     return;
   }
-  if (state.dead) dt *= 0.12;
+  if (state.dead) {
+    if (state.deathFreeze > 0) {
+      state.deathFreeze = Math.max(0, state.deathFreeze - realDt);
+      dt = 0;
+    } else {
+      dt *= 0.12;
+    }
+  }
   if (state.focus > 0 && !state.dead) {
     dt *= 0.36;
     state.focus -= dt / 0.36;
@@ -1781,6 +2161,8 @@ function animate() {
   sunTrails.forEach((trail) => fadeTrail(trail, state.highQuality ? 0.987 : 0.93));
   updateNearMissEffects(dt);
   updateSupernovaEffects(dt);
+  updateExplosionParticles(dt);
+  updateLevelBanner();
   updateFocusRings(dt);
   portalGuideRing.rotation.z += dt * 0.45;
   portalGuideRing.scale.setScalar(1 + Math.sin(state.time * 2.1) * 0.08);
@@ -1795,8 +2177,10 @@ function animate() {
       + Math.max(0, state.days - 100) * 0.018;
     state.difficulty *= 0.85 + THREE.MathUtils.smoothstep(state.days, 0, 25) * 0.15;
     state.difficulty *= 1 + THREE.MathUtils.smoothstep(state.days, 60, 110) * 0.1;
+    updateLevelMode();
     updateAnchors(dt);
     physicsStep(dt);
+    updateComets(dt);
     planet.position.copy(state.planetPos);
     window.currentSpeed = Number(state.planetVel.length().toFixed(2));
     planetCore.rotation.y += dt * 1.3;
@@ -1875,6 +2259,7 @@ pauseNextButton.addEventListener('click', nextGame);
 pauseCopyButton.addEventListener('click', copyShareText);
 controlsButton.addEventListener('click', () => { controlsText.hidden = !controlsText.hidden; });
 portalBadge.addEventListener('click', nextGame);
+runModeToggle.addEventListener('click', () => startRunMode((state?.runMode || selectedRunMode) === 'level' ? 'survival' : 'level'));
 tutorialSkip.addEventListener('click', finishTutorial);
 tutorialGotIt.addEventListener('click', advanceTutorial);
 document.querySelector('#info-button').addEventListener('click', openInfoScreen);
@@ -1882,6 +2267,8 @@ document.querySelector('#story-button').addEventListener('click', openStoryScree
 document.querySelector('#pause-info-button').addEventListener('click', openInfoScreen);
 document.querySelector('#pause-story-button').addEventListener('click', openStoryScreen);
 document.querySelector('#info-resume-button').addEventListener('click', closeOverlays);
+infoSurvivalButton.addEventListener('click', () => startRunMode('survival'));
+infoLevelButton.addEventListener('click', () => startRunMode('level'));
 infoTutorialButton.addEventListener('click', () => { closeOverlays(); startTutorial(true); });
 infoStoryButton.addEventListener('click', openStoryScreen);
 document.querySelector('#info-restart-button').addEventListener('click', () => { closeOverlays(); resetGame(); });

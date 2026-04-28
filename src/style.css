@@ -55,18 +55,21 @@ body {
 
 body.danger-heat #danger-vignette {
   background:
+    linear-gradient(90deg, rgba(255, 40, 28, 0.42), transparent 18%, transparent 82%, rgba(255, 40, 28, 0.42)),
     radial-gradient(circle at 50% 50%, transparent 34%, rgba(255, 70, 36, 0.12) 62%, rgba(255, 40, 28, 0.34)),
     repeating-linear-gradient(90deg, rgba(255, 128, 64, 0.04), transparent 2px, transparent 8px);
 }
 
 body.danger-cold #danger-vignette {
   background:
+    linear-gradient(90deg, rgba(80, 198, 255, 0.38), transparent 18%, transparent 82%, rgba(158, 231, 255, 0.38)),
     radial-gradient(circle at 50% 50%, transparent 36%, rgba(124, 220, 255, 0.16) 66%, rgba(158, 231, 255, 0.32)),
     linear-gradient(135deg, rgba(174, 239, 255, 0.08), transparent 45%);
 }
 
 body.danger-chaos #danger-vignette {
   background:
+    linear-gradient(90deg, rgba(179, 119, 255, 0.4), transparent 18%, transparent 82%, rgba(255, 211, 106, 0.32)),
     radial-gradient(circle at 50% 50%, transparent 30%, rgba(179, 119, 255, 0.16) 66%, rgba(255, 255, 255, 0.2)),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06), transparent 2px, transparent 7px);
 }
@@ -75,6 +78,10 @@ body.danger-supernova #danger-vignette {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.92), rgba(255, 211, 106, 0.48) 28%, rgba(179, 119, 255, 0.34) 58%, transparent 78%),
     repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 3px, transparent 12px);
+}
+
+body.low-health #danger-vignette {
+  filter: saturate(1.35) contrast(1.08);
 }
 
 #hud {
@@ -193,6 +200,50 @@ h1 {
 
 #toast-line.visible {
   opacity: 1;
+}
+
+#level-banner {
+  position: fixed;
+  left: 50%;
+  top: clamp(1rem, 4vh, 2.1rem);
+  z-index: 4;
+  display: grid;
+  gap: 0.16rem;
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 0.8rem 1rem;
+  transform: translate(-50%, 0);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(10, 13, 30, 0.82), rgba(61, 30, 88, 0.72));
+  box-shadow: 0 0 40px rgba(255, 211, 106, 0.18), inset 0 0 22px rgba(255, 255, 255, 0.05);
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  animation: level-banner-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#level-banner.hidden {
+  display: none;
+}
+
+#level-banner.fading {
+  animation: level-banner-out 420ms ease both;
+}
+
+#level-banner strong {
+  color: #fff;
+  letter-spacing: 0.16em;
+  font-size: clamp(0.96rem, 3vw, 1.28rem);
+  text-shadow: 0 0 22px rgba(255, 211, 106, 0.55);
+}
+
+#level-banner span,
+#level-banner em {
+  color: rgba(240, 234, 255, 0.76);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-style: normal;
 }
 
 #hint-line {
@@ -462,6 +513,10 @@ body.mode-observatory #mode-name {
   background: radial-gradient(ellipse at 50% 115%, rgba(255, 211, 106, 0.15), transparent 48%), linear-gradient(rgba(7, 5, 1, 0.94), rgba(2, 3, 10, 0.98));
 }
 
+#death-screen[data-cause="impact"] {
+  background: radial-gradient(ellipse at 50% 115%, rgba(255, 255, 255, 0.18), transparent 48%), linear-gradient(rgba(9, 5, 14, 0.94), rgba(2, 3, 10, 0.98));
+}
+
 .death-planet-ghost {
   position: absolute;
   left: 50%;
@@ -511,6 +566,11 @@ body.mode-observatory #mode-name {
 #death-screen[data-cause="collapse"] .death-content h2 {
   color: #ffd36a;
   text-shadow: 0 0 80px rgba(255, 211, 106, 0.35);
+}
+
+#death-screen[data-cause="impact"] .death-content h2 {
+  color: #ffffff;
+  text-shadow: 0 0 90px rgba(255, 211, 106, 0.5);
 }
 
 .death-card {
@@ -721,6 +781,13 @@ button:hover {
   border-color: rgba(224, 214, 255, 0.28);
 }
 
+#run-mode-toggle.active,
+#run-mode-toggle:hover {
+  color: #9fffd4;
+  border-color: rgba(159, 255, 212, 0.5);
+  box-shadow: 0 0 18px rgba(159, 255, 212, 0.18);
+}
+
 /* Next Game portal tooltip wrapper — position:relative only so the button
    stays the same size as its siblings; the hint floats below via absolute. */
 .portal-btn-wrap {
@@ -890,6 +957,16 @@ button:hover {
   48% { opacity: 0.34; }
   51% { opacity: 0.55; }
   53% { opacity: 0.38; }
+}
+
+@keyframes level-banner-in {
+  from { opacity: 0; transform: translate(-50%, -1.1rem); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes level-banner-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -0.8rem); }
 }
 
 @media (max-width: 620px) {

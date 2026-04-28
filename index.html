@@ -20,10 +20,14 @@
             <div class="hud-links">
               <button id="info-button" type="button" class="hud-link-btn">INFO</button>
               <button id="story-button" type="button" class="hud-link-btn">STORY</button>
+              <button id="run-mode-toggle" type="button" class="hud-link-btn" title="Survival: endless run — Level: reach milestones">SURVIVAL</button>
             </div>
           </div>
           <div class="stats">
             <span>Day <strong id="days">0</strong></span>
+            <span>Run <strong id="run-mode-readout">SURVIVAL</strong></span>
+            <span id="level-row">Level <strong id="level-readout">--</strong></span>
+            <span id="next-level-row">Next <strong id="next-level-readout">--</strong></span>
             <span>Health <strong id="health">100%</strong></span>
             <div class="health-bar" aria-hidden="true"><i id="health-fill"></i></div>
             <span>Mode <strong id="mode-readout">SHIELD</strong></span>
@@ -32,6 +36,11 @@
         </div>
         <div id="warnings">omens quiet</div>
         <div id="toast-line"></div>
+        <div id="level-banner" class="hidden" aria-live="polite">
+          <strong id="level-banner-title">LEVEL REACHED</strong>
+          <span id="level-banner-subtitle">Difficulty increased</span>
+          <em id="level-banner-name">FIRST DAWN</em>
+        </div>
         <div id="hint-line">Click/tap to place gravity anchors</div>
         <div class="meters" aria-hidden="true">
           <span id="heat-meter"></span>
@@ -116,14 +125,18 @@
             <li>Click or tap to place gravity anchors.</li>
             <li>Anchors cost Signal. Signal regenerates during stable orbits.</li>
             <li>Space / FOCUS slows time briefly — use it to escape danger.</li>
-            <li><strong>1 Shield</strong> — protects from solar aura heat. Not from direct contact.</li>
-            <li><strong>2 Sleep</strong> — protects from deep cold and restores Signal faster.</li>
-            <li><strong>3 Observe</strong> — clearer omens and cheaper anchors, but weaker protection.</li>
+            <li><strong>Survival Mode</strong> — endless run. Survive as many days as possible.</li>
+            <li><strong>Level Mode</strong> — reach day milestones to climb from First Dawn to Last World Keeper.</li>
+            <li><strong>Comets</strong> — rare fast impacts with a warning omen. They hurt badly and shove your orbit.</li>
+            <li><strong>1 Shield</strong> — protects from red heat aura. Not from direct contact.</li>
+            <li><strong>2 Sleep</strong> — protects from blue cold aura and restores Signal faster.</li>
+            <li><strong>3 Observe</strong> — protects from yellow/gamma chaos aura, gives clearer omens, and cheaper anchors.</li>
             <li><strong>Direct sun contact is fatal.</strong> Aura zones drain health over time.</li>
-            <li>Survive as many days as possible.</li>
           </ul>
           <p class="overlay-footnote">Modes reduce aura danger. They do not stop direct sun contact.</p>
           <div class="overlay-actions">
+            <button id="info-survival-button" type="button" class="btn-primary">Survival Mode</button>
+            <button id="info-level-button" type="button">Level Mode</button>
             <button id="info-resume-button" type="button" class="btn-primary">GOT IT</button>
             <button id="info-tutorial-button" type="button">Replay Tutorial</button>
             <button id="info-story-button" type="button">Story</button>
