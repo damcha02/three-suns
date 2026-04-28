@@ -1117,7 +1117,7 @@ async function confirmPublish() {
   publishForm.classList.add('hidden');
   shareStatus.textContent = 'Publishing…';
   const ok = await insertScore(name, state.runMode, state.days, state.currentLevel);
-  shareStatus.textContent = ok ? 'Score published!' : 'Score saved locally (offline).';
+  shareStatus.textContent = ok ? 'Score published!' : 'Could not reach leaderboard. Try again later.';
 }
 
 function getLevelName(level) {
