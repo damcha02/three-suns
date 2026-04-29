@@ -92,9 +92,20 @@
             </div>
             <button id="pause-restart-button" type="button">Restart</button>
             <button id="mute-button" type="button">Mute</button>
+            <button id="music-settings-btn" type="button">Music</button>
             <button id="pause-info-button" type="button">Info</button>
             <button id="pause-story-button" type="button">Story</button>
             <button id="controls-button" type="button">Controls</button>
+          </div>
+          <div id="audio-settings" class="hidden">
+            <div class="vol-row">
+              <label for="music-vol-slider">Music</label>
+              <input id="music-vol-slider" type="range" min="0" max="1" step="0.01" value="1" />
+            </div>
+            <div class="vol-row">
+              <label for="sfx-vol-slider">Effects</label>
+              <input id="sfx-vol-slider" type="range" min="0" max="1" step="0.01" value="1" />
+            </div>
           </div>
         </div>
       </section>

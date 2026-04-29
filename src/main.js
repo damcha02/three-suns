@@ -136,6 +136,9 @@ const SUPABASE_HEADERS = {
 };
 const COMET_WARNING_LEAD = 2;
 const DEBUG_DEATH_CAUSE = false;
+const MUSIC_BASE_VOL = 2.8;
+const SFX_BASE_VOL = 0.9;
+const VOLUME_KEY = 'threesuns_volume';
 
 const portalParams = new URLSearchParams(window.location.search);
 const arrivedViaPortal = portalParams.get('portal') === 'true' || portalParams.get('portal') === '1';
@@ -197,6 +200,12 @@ let spaceAmbient = null;
 let muted = localStorage.getItem('threesuns_muted') === 'true';
 let highQuality = true;
 let selectedRunMode = localStorage.getItem(RUN_MODE_KEY) === 'level' ? 'level' : 'survival';
+let volumeSettings = { music: 1, sfx: 1 };
+try {
+  const _vs = JSON.parse(localStorage.getItem(VOLUME_KEY) || '{}');
+  if (typeof _vs.music === 'number') volumeSettings.music = _vs.music;
+  if (typeof _vs.sfx === 'number') volumeSettings.sfx = _vs.sfx;
+} catch {}
 
 const tutorial = { active: false, index: 0, timer: 0 };
 const tutorialSteps = [
@@ -589,10 +598,23 @@ function createAudio() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   try {
     const ctx = new AudioContext();
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 3;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    limiter.connect(ctx.destination);
     const master = ctx.createGain();
-    master.gain.value = 0.045;
-    master.connect(ctx.destination);
-    audio = { ctx, master };
+    master.gain.value = 1.0;
+    master.connect(limiter);
+    const musicGain = ctx.createGain();
+    musicGain.gain.value = muted ? 0 : volumeSettings.music * MUSIC_BASE_VOL;
+    musicGain.connect(master);
+    const sfxGain = ctx.createGain();
+    sfxGain.gain.value = muted ? 0 : volumeSettings.sfx * SFX_BASE_VOL;
+    sfxGain.connect(master);
+    audio = { ctx, master, musicGain, sfxGain };
   } catch {
     audio = null;
   }
@@ -612,7 +634,7 @@ function blip(freq, duration = 0.09, type = 'sine', gain = 0.8) {
   g.gain.setValueAtTime(0, a.ctx.currentTime);
   g.gain.linearRampToValueAtTime(gain, a.ctx.currentTime + 0.012);
   g.gain.exponentialRampToValueAtTime(0.001, a.ctx.currentTime + duration);
-  osc.connect(g).connect(a.master);
+  osc.connect(g).connect(a.sfxGain);
   osc.start();
   osc.stop(a.ctx.currentTime + duration + 0.02);
 }
@@ -637,7 +659,7 @@ function createMusic() {
 
   const musicMaster = ctx.createGain();
   musicMaster.gain.value = 0;
-  musicMaster.connect(audio.master);
+  musicMaster.connect(audio.musicGain);
 
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
@@ -727,7 +749,7 @@ function updateMusic() {
   const isFocus = (state?.focus || 0) > 0;
   const isDead = state?.dead || false;
 
-  const targetVol = muted ? 0 : isDead ? 0.04 : (0.9 + prox * 1.1);
+  const targetVol = isDead ? 0.04 : (0.9 + prox * 1.1);
   music.musicMaster.gain.setTargetAtTime(targetVol, t, isDead ? 0.8 : 0.6);
 
   const targetFreq = isFocus ? (500 + prox * 300) : (1400 + prox * 1600);
@@ -779,10 +801,10 @@ function createDeathLoop() {
   try {
     const panner = ctx.createStereoPanner();
     master.connect(panner);
-    panner.connect(audio.master);
+    panner.connect(audio.musicGain);
     deathLoop = { master, panner };
   } catch {
-    master.connect(audio.master);
+    master.connect(audio.musicGain);
     deathLoop = { master, panner: null };
   }
 
@@ -889,7 +911,7 @@ function startDeathLoop() {
   deathLoop.noteIndex = 0;
   deathLoop.master.gain.cancelScheduledValues(t);
   deathLoop.master.gain.setValueAtTime(deathLoop.master.gain.value, t);
-  deathLoop.master.gain.linearRampToValueAtTime(muted ? 0 : 0.55, t + 0.5);
+  deathLoop.master.gain.linearRampToValueAtTime(0.55, t + 0.5);
 }
 
 function stopDeathLoop() {
@@ -934,7 +956,7 @@ function createSpaceAmbient() {
   warmth.frequency.value = 9000;
   warmth.Q.value = 0.4;
   warmth.connect(master);
-  master.connect(audio.master);
+  master.connect(audio.musicGain);
 
   // Short room reverb
   const delay = ctx.createDelay(0.6);
@@ -1063,7 +1085,7 @@ function startSpaceAmbient() {
   spaceAmbient.barIndex = 0;
   spaceAmbient.master.gain.cancelScheduledValues(t);
   spaceAmbient.master.gain.setValueAtTime(spaceAmbient.master.gain.value, t);
-  spaceAmbient.master.gain.linearRampToValueAtTime(muted ? 0 : 0.36, t + 0.8);
+  spaceAmbient.master.gain.linearRampToValueAtTime(0.36, t + 0.8);
 }
 
 function stopSpaceAmbient() {
@@ -1732,9 +1754,24 @@ function toggleMute() {
   muteButton.textContent = muted ? 'Unmute' : 'Mute';
   if (audio) {
     const t = audio.ctx.currentTime;
-    if (music) music.musicMaster.gain.setTargetAtTime(muted ? 0 : 0.9, t, 0.3);
-    if (deathLoop) deathLoop.master.gain.setTargetAtTime(muted ? 0 : 0.55, t, 0.3);
-    if (spaceAmbient) spaceAmbient.master.gain.setTargetAtTime(muted ? 0 : 0.36, t, 0.3);
+    audio.musicGain.gain.setTargetAtTime(muted ? 0 : volumeSettings.music * MUSIC_BASE_VOL, t, 0.3);
+    audio.sfxGain.gain.setTargetAtTime(muted ? 0 : volumeSettings.sfx * SFX_BASE_VOL, t, 0.3);
+  }
+}
+
+function setMusicVolume(v) {
+  volumeSettings.music = v;
+  localStorage.setItem(VOLUME_KEY, JSON.stringify(volumeSettings));
+  if (audio && !muted) {
+    audio.musicGain.gain.setTargetAtTime(v * MUSIC_BASE_VOL, audio.ctx.currentTime, 0.05);
+  }
+}
+
+function setSfxVolume(v) {
+  volumeSettings.sfx = v;
+  localStorage.setItem(VOLUME_KEY, JSON.stringify(volumeSettings));
+  if (audio && !muted) {
+    audio.sfxGain.gain.setTargetAtTime(v * SFX_BASE_VOL, audio.ctx.currentTime, 0.05);
   }
 }
 
@@ -2673,8 +2710,21 @@ function resize() {
   renderer.setSize(width, height, false);
 }
 
+// ---- Audio settings panel ----
+const audioSettings = document.querySelector('#audio-settings');
+const musicVolSlider = document.querySelector('#music-vol-slider');
+const sfxVolSlider = document.querySelector('#sfx-vol-slider');
+if (musicVolSlider) musicVolSlider.value = String(volumeSettings.music);
+if (sfxVolSlider) sfxVolSlider.value = String(volumeSettings.sfx);
+musicVolSlider?.addEventListener('input', () => setMusicVolume(Number(musicVolSlider.value)));
+sfxVolSlider?.addEventListener('input', () => setSfxVolume(Number(sfxVolSlider.value)));
+document.querySelector('#music-settings-btn')?.addEventListener('click', () => {
+  audioSettings?.classList.toggle('hidden');
+});
+
 window.addEventListener('resize', resize);
 window.addEventListener('pointerdown', (event) => {
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') return;
   if (event.target.closest('button')) return;
   if (event.target.closest('#tutorial-box')) return;
   placeAnchor(event.clientX, event.clientY);

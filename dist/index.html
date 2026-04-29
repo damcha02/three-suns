@@ -7,8 +7,8 @@
     <title>Three Suns: Chaotic Dawn</title>
     <script async src="https://vibej.am/2026/widget.js"></script>
     <script src="https://vibej.am/2026/portal/sample.js"></script>
-    <script type="module" crossorigin src="/assets/index-CQJJAlEA.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-5Kplgwzm.css">
+    <script type="module" crossorigin src="/assets/index-B7fTbp58.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Yr6rssAs.css">
   </head>
   <body>
     <main id="game-root">
@@ -94,9 +94,20 @@
             </div>
             <button id="pause-restart-button" type="button">Restart</button>
             <button id="mute-button" type="button">Mute</button>
+            <button id="music-settings-btn" type="button">Music</button>
             <button id="pause-info-button" type="button">Info</button>
             <button id="pause-story-button" type="button">Story</button>
             <button id="controls-button" type="button">Controls</button>
+          </div>
+          <div id="audio-settings" class="hidden">
+            <div class="vol-row">
+              <label for="music-vol-slider">Music</label>
+              <input id="music-vol-slider" type="range" min="0" max="1" step="0.01" value="1" />
+            </div>
+            <div class="vol-row">
+              <label for="sfx-vol-slider">Effects</label>
+              <input id="sfx-vol-slider" type="range" min="0" max="1" step="0.01" value="1" />
+            </div>
           </div>
         </div>
       </section>
